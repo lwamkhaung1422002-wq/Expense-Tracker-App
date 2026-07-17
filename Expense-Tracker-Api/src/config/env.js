@@ -10,17 +10,22 @@ const weakJwtSecrets = new Set([
   "changeme",
 ]);
 
+const nodeEnv = process.env.NODE_ENV || "development";
+const rawClientOrigins =
+  process.env.CLIENT_ORIGIN || (nodeEnv === "production" ? "" : "http://localhost:5173,http://127.0.0.1:5173");
+
 export const env = {
-  nodeEnv: process.env.NODE_ENV || "development",
-  port: Number(process.env.PORT || (process.env.NODE_ENV === "production" ? 8080 : 4000)),
+  nodeEnv,
+  port: Number(process.env.PORT || (nodeEnv === "production" ? 8080 : 4000)),
   databaseUrl: process.env.DATABASE_URL || "",
   jwtSecret: process.env.JWT_SECRET || "",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   trustProxy: process.env.TRUST_PROXY === "true",
-  clientOrigins: (process.env.CLIENT_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173")
+  clientOrigins: rawClientOrigins
     .split(",")
     .map((origin) => origin.trim())
-    .filter(Boolean),
+    .filter(Boolean)
+    .filter((origin) => nodeEnv !== "production" || (!origin.includes("localhost") && !origin.includes("127.0.0.1"))),
 };
 
 if (!env.jwtSecret) {
@@ -40,7 +45,5 @@ if (env.nodeEnv === "production") {
     throw new Error("JWT_SECRET must be a strong production secret with at least 32 characters");
   }
 
-  if (env.clientOrigins.some((origin) => origin.includes("localhost") || origin.includes("127.0.0.1"))) {
-    throw new Error("CLIENT_ORIGIN must not include localhost origins in production");
-  }
+  if (!env.clientOrigins.length) console.warn("CLIENT_ORIGIN is empty. Browser CORS access will be blocked until set.");
 }

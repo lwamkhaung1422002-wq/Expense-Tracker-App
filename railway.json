@@ -7,7 +7,7 @@
     "preDeployCommand": "npm run railway:predeploy",
     "startCommand": "npm run railway:start",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 120,
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
