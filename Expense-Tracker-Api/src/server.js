@@ -1,10 +1,8 @@
 import { app } from "./app.js";
 import { env } from "./config/env.js";
-import { enableSqliteProductionSafeguards, prisma } from "./lib/prisma.js";
+import { prisma } from "./lib/prisma.js";
 
 async function start() {
-  await enableSqliteProductionSafeguards();
-
   const server = app.listen(env.port, () => {
     console.log(`Expense Tracker API listening on http://localhost:${env.port}`);
   });

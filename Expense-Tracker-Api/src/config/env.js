@@ -13,7 +13,7 @@ const weakJwtSecrets = new Set([
 export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
-  databaseUrl: process.env.DATABASE_URL || "file:./dev.db",
+  databaseUrl: process.env.DATABASE_URL || "",
   jwtSecret: process.env.JWT_SECRET || "",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   trustProxy: process.env.TRUST_PROXY === "true",
@@ -25,6 +25,14 @@ export const env = {
 
 if (!env.jwtSecret) {
   throw new Error("JWT_SECRET is required");
+}
+
+if (!env.databaseUrl) {
+  throw new Error("DATABASE_URL is required");
+}
+
+if (!env.databaseUrl.startsWith("postgresql://") && !env.databaseUrl.startsWith("postgres://")) {
+  throw new Error("DATABASE_URL must be a PostgreSQL connection string");
 }
 
 if (env.nodeEnv === "production") {

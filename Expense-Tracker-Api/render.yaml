@@ -3,20 +3,16 @@ services:
     runtime: node
     name: expense-tracker-api
     region: singapore
-    plan: starter
+    plan: free
     buildCommand: npm run render:build
     preDeployCommand: npm run render:predeploy
     startCommand: npm start
     healthCheckPath: /health
-    disk:
-      name: expense-tracker-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:/data/expense-tracker.db
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
