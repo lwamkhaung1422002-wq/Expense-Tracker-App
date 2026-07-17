@@ -3,8 +3,9 @@ import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 
 async function start() {
-  const server = app.listen(env.port, () => {
-    console.log(`Expense Tracker API listening on http://localhost:${env.port}`);
+  const host = "0.0.0.0";
+  const server = app.listen(env.port, host, () => {
+    console.log(`Expense Tracker API listening on http://${host}:${env.port}`);
   });
 
   const shutdown = async () => {
