@@ -355,11 +355,12 @@
 .budgetBody {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(260px, 380px);
-  gap: 28px;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(0, 1.15fr);
+  gap: 18px;
   align-items: center;
-  justify-content: center;
+  justify-content: stretch;
   padding: 14px 0 6px;
+  min-width: 0;
 }
 
 .ringWrap {
@@ -370,8 +371,8 @@
 
 .circularRing {
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: clamp(132px, 12vw, 160px);
+  height: clamp(132px, 12vw, 160px);
   display: grid;
   place-items: center;
 }
@@ -405,7 +406,8 @@
 .budgetStats {
   width: 100%;
   margin: 0;
-  padding: 18px;
+  min-width: 0;
+  padding: 16px;
   border: 1px solid #eef2f7;
   border-radius: 18px;
   background: #f8fafc;
@@ -413,13 +415,33 @@
 
 .budgetStatRow {
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
   padding: 6px 0;
+  min-width: 0;
+}
+
+.budgetStatRow .MuiTypography-root {
+  min-width: 0;
 }
 
 .budgetStatRow .MuiTypography-root:last-child {
   text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1280px) {
+  .budgetBody {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .circularRing {
+    width: 150px;
+    height: 150px;
+  }
 }
 
 .donutBox {
