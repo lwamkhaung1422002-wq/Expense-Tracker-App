@@ -11,8 +11,20 @@ const weakJwtSecrets = new Set([
 ]);
 
 const nodeEnv = process.env.NODE_ENV || "development";
+const defaultClientOrigins =
+  nodeEnv === "production"
+    ? "https://expense-tracker-lkjaden.netlify.app"
+    : "http://localhost:5173,http://127.0.0.1:5173";
 const rawClientOrigins =
-  process.env.CLIENT_ORIGIN || (nodeEnv === "production" ? "" : "http://localhost:5173,http://127.0.0.1:5173");
+  process.env.CLIENT_ORIGIN || defaultClientOrigins;
+
+function normalizeOrigin(origin) {
+  return origin
+    .replace(/^CLIENT_ORIGIN=/i, "")
+    .replace(/^VITE_API_URL=/i, "")
+    .trim()
+    .replace(/\/$/, "");
+}
 
 export const env = {
   nodeEnv,
@@ -23,7 +35,7 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === "true",
   clientOrigins: rawClientOrigins
     .split(",")
-    .map((origin) => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean)
     .filter((origin) => nodeEnv !== "production" || (!origin.includes("localhost") && !origin.includes("127.0.0.1"))),
 };
