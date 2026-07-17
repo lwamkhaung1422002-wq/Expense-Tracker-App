@@ -98,12 +98,14 @@ const theme = createTheme({
   shape: { borderRadius: 18 },
   typography: {
     fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-    h4: { fontWeight: 700, letterSpacing: '-0.01em' },
-    h5: { fontWeight: 700, letterSpacing: '-0.01em' },
-    h6: { fontWeight: 700, letterSpacing: '-0.005em' },
-    body1: { letterSpacing: 0 },
-    body2: { letterSpacing: 0 },
-    button: { fontWeight: 600, textTransform: 'none', letterSpacing: 0 },
+    h4: { fontSize: '2.25rem', lineHeight: 1.08, fontWeight: 750, letterSpacing: '-0.02em' },
+    h5: { fontSize: '1.35rem', lineHeight: 1.18, fontWeight: 750, letterSpacing: '-0.012em' },
+    h6: { fontSize: '1.02rem', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.006em' },
+    subtitle1: { fontSize: '0.98rem', lineHeight: 1.45 },
+    body1: { fontSize: '0.95rem', lineHeight: 1.5, letterSpacing: 0 },
+    body2: { fontSize: '0.86rem', lineHeight: 1.45, letterSpacing: 0 },
+    caption: { fontSize: '0.72rem', lineHeight: 1.35 },
+    button: { fontSize: '0.9rem', fontWeight: 700, textTransform: 'none', letterSpacing: 0 },
   },
   components: {
     MuiCard: {
@@ -119,13 +121,14 @@ const theme = createTheme({
     MuiTextField: {
       styleOverrides: {
         root: {
-          '& .MuiOutlinedInput-root': { borderRadius: 12, background: '#FFFFFF' },
+          '& .MuiOutlinedInput-root': { borderRadius: 12, background: '#FFFFFF', fontSize: '0.95rem' },
+          '& .MuiInputLabel-root': { fontSize: '0.9rem' },
         },
       },
     },
     MuiSelect: {
       styleOverrides: {
-        root: { borderRadius: 12, background: '#FFFFFF' },
+        root: { borderRadius: 12, background: '#FFFFFF', fontSize: '0.95rem' },
       },
     },
   },
