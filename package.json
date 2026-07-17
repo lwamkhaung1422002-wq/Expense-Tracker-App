@@ -9,7 +9,7 @@
     "lint": "npm --prefix Expense-Tracker-Api run lint && npm --prefix Expense-Tracker-App run lint",
     "prisma:generate": "npm --prefix Expense-Tracker-Api run prisma:generate",
     "prisma:migrate": "npm --prefix Expense-Tracker-Api run prisma:migrate",
-    "railway:build": "npm --prefix Expense-Tracker-Api ci --include=dev && npm --prefix Expense-Tracker-Api run prisma:generate",
+    "railway:build": "npm --prefix Expense-Tracker-Api run prisma:generate",
     "railway:predeploy": "npm --prefix Expense-Tracker-Api run prisma:deploy",
     "railway:start": "npm --prefix Expense-Tracker-Api start"
   },
