@@ -229,7 +229,7 @@ async function api(path, { token, method = 'GET', body } = {}) {
       body: body ? JSON.stringify(body) : undefined,
     })
   } catch {
-    throw new Error('Cannot reach the API. Check that it is running on port 4000.')
+    throw new Error(`Cannot reach the API at ${API_URL}. Check the backend deployment and VITE_API_URL setting.`)
   }
 
   if (response.status === 204) return null
