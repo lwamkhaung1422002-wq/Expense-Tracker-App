@@ -770,17 +770,6 @@
   margin-top: 6px !important;
 }
 
-.emptyBudgetButton .MuiButton-startIcon {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  margin-left: -6px;
-  border-radius: 10px;
-  color: #284bff;
-  background: rgba(255, 255, 255, 0.9);
-}
-
 .reportToolbar {
   display: inline-flex;
   width: fit-content;
