@@ -16,6 +16,7 @@ Default local URL: `http://localhost:4000`.
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+DIRECT_URL="postgresql://USER:PASSWORD@DIRECT_HOST/DB?sslmode=require"
 JWT_SECRET="replace-with-a-long-random-production-secret"
 JWT_EXPIRES_IN="7d"
 PORT=4000
@@ -46,6 +47,7 @@ Environment variables:
 ```env
 NODE_ENV=production
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
+DIRECT_URL=postgresql://USER:PASSWORD@DIRECT_HOST/DB?sslmode=require
 JWT_SECRET=<Render can generate this, or use your own long random secret>
 JWT_EXPIRES_IN=7d
 CLIENT_ORIGIN=https://your-netlify-site.netlify.app
@@ -54,7 +56,7 @@ TRUST_PROXY=true
 
 If you use the included `render.yaml`, Render will prompt you for `DATABASE_URL` and `CLIENT_ORIGIN`.
 
-For Neon, copy the pooled or direct connection string from your Neon dashboard and keep `sslmode=require`.
+For Neon, use the pooled connection string for `DATABASE_URL` and the direct, non-pooled connection string for `DIRECT_URL`. Prisma Migrate needs the direct URL when applying migrations.
 
 ## Production security checklist
 
