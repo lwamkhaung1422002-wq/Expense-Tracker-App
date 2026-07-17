@@ -385,7 +385,6 @@ function Dashboard({ auth }) {
   const [walletDialog, setWalletDialog] = useState(null)
   const [budgetDialog, setBudgetDialog] = useState(null)
   const [goalDialog, setGoalDialog] = useState(null)
-  const showPreview = useMediaQuery('(min-width:1481px)')
   const timezone = useMemo(() => userTimezone(), [])
 
   const load = useCallback(async () => {
@@ -449,6 +448,14 @@ function Dashboard({ auth }) {
     if (activeView === 'Dashboard' || activeView === 'Transactions' || activeView === 'Reports') return () => setTransactionDialog({})
     return null
   }, [activeView, month])
+  const headerAction = useMemo(() => {
+    if (activeView === 'Budgets') return { label: 'Add Budget', action: () => setBudgetDialog({ month }) }
+    if (activeView === 'Wallets') return { label: 'Add Wallet', action: () => setWalletDialog({}) }
+    if (activeView === 'Goals') return { label: 'Add Goal', action: () => setGoalDialog({}) }
+    if (activeView === 'Categories') return { label: 'Manage Categories', action: () => setCategoryDialog(true) }
+    if (activeView === 'Settings') return null
+    return { label: 'Add Transaction', action: () => setTransactionDialog({}) }
+  }, [activeView, month])
 
   async function deleteTransaction(id) {
     await api(`/api/transactions/${id}`, { token: auth.token, method: 'DELETE' })
@@ -477,7 +484,8 @@ function Dashboard({ auth }) {
           month={month}
           notifications={notifications}
           onMonthChange={setMonth}
-          onAdd={() => setTransactionDialog({})}
+          actionLabel={headerAction?.label}
+          onAdd={headerAction?.action}
           onLogout={auth.logout}
         />
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -502,7 +510,6 @@ function Dashboard({ auth }) {
         {activeView === 'Reports' && <ReportsView report={report} period={reportPeriod} onPeriodChange={setReportPeriod} money={money} />}
         {activeView === 'Settings' && <SettingsView profile={profile} token={auth.token} onSaved={(user) => { setProfile(user); auth.updateUser({ id: user.id, name: user.name, email: user.email }) }} onPasswordChanged={auth.logout} />}
       </Box>
-      {showPreview && <MobilePreview summary={derived} money={money} />}
       <MobileBottomNav activeView={activeView} onNavigate={setActiveView} />
       {mobileAction && (
         <Button className="mobileFab" variant="contained" onClick={mobileAction} aria-label={`Add on ${activeView}`}>
@@ -578,7 +585,7 @@ function Sidebar({ user, activeView, budgetTotal, expense, money, onNavigate, on
   )
 }
 
-function Header({ title, month, onMonthChange, onAdd, onLogout }) {
+function Header({ title, month, onMonthChange, actionLabel, onAdd, onLogout }) {
   return (
     <Box className="topHeader">
       <Box className="headerTitle">
@@ -599,7 +606,11 @@ function Header({ title, month, onMonthChange, onAdd, onLogout }) {
           onChange={(event) => onMonthChange(event.target.value)}
           slotProps={{ input: { startAdornment: <InputAdornment position="start"><CalendarMonthRoundedIcon fontSize="small" /></InputAdornment> } }}
         />
-        <Button variant="contained" startIcon={<AddRoundedIcon />} className="addButton" onClick={onAdd}>Add Transaction</Button>
+        {actionLabel && (
+          <Button variant="contained" startIcon={<AddRoundedIcon />} className="addButton" onClick={onAdd}>
+            {actionLabel}
+          </Button>
+        )}
         <MuiTooltip title="Sign out">
           <IconButton className="headerLogoutButton" onClick={onLogout} aria-label="Sign out">
             <PowerSettingsNewRoundedIcon />
@@ -949,7 +960,7 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
             <Typography variant="caption" color="text.secondary">Budget period</Typography>
             <Typography variant="h5">{friendlyMonth(month)}</Typography>
           </Box>
-          {!isCompact && <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add Budget</Button>}
+          {!isCompact && <Button className="budgetActionButton" variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add Budget</Button>}
         </Stack>
         <Stack direction="row" sx={{ mt: 2, justifyContent: 'space-between' }}>
           <Typography color="text.secondary">Spent</Typography>
@@ -993,7 +1004,7 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
               <SavingsRoundedIcon />
               <Typography variant="h6">No budgets yet</Typography>
               <Typography color="text.secondary">Create a monthly plan for {friendlyMonth(month)}.</Typography>
-              {!isCompact && <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add Budget</Button>}
+              {!isCompact && <Button className="emptyBudgetButton" variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add Budget</Button>}
             </Paper>
           </Grid>
         )}

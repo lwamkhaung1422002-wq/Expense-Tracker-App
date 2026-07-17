@@ -1,9 +1,9 @@
 .dashboardRoot {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 340px;
-  gap: 18px;
-  padding: 14px;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 22px;
+  padding: 18px;
   background: #f8fafc;
   color: #0f172a;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -739,7 +739,7 @@
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 10px;
+  gap: 12px;
   text-align: center;
   color: #0f172a;
   background:
@@ -748,12 +748,37 @@
 }
 
 .emptyBudgetCard .MuiSvgIcon-root {
-  width: 46px;
-  height: 46px;
-  padding: 10px;
+  width: 52px;
+  height: 52px;
+  padding: 12px;
   border-radius: 16px;
   color: #3b5bff;
   background: #eef2ff;
+}
+
+.budgetActionButton,
+.emptyBudgetButton {
+  min-height: 44px;
+  padding-inline: 18px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg, #3b5bff, #2563eb) !important;
+  box-shadow: 0 14px 26px rgba(59, 91, 255, 0.18) !important;
+}
+
+.emptyBudgetButton {
+  min-width: 168px;
+  margin-top: 6px !important;
+}
+
+.emptyBudgetButton .MuiButton-startIcon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  margin-left: -6px;
+  border-radius: 10px;
+  color: #284bff;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .reportToolbar {
