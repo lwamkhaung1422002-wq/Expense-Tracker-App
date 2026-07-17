@@ -75,7 +75,6 @@ import {
 import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
-const BUDGET_TOTAL = 5000
 const currencyOptions = ['USD', 'MMK', 'THB', 'SGD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR']
 
 function createMoneyFormatter(code = 'USD') {
@@ -435,9 +434,8 @@ function Dashboard({ auth }) {
   const currencyCode = profile?.currency || 'USD'
   const money = useMemo(() => createMoneyFormatter(currencyCode), [currencyCode])
   const monthlyBudgetTotal = useMemo(() => {
-    const total = budgets.reduce((sum, budget) => sum + Number(budget.amount || 0), 0)
-    return total > 0 ? total : profile?.monthlyBudget || BUDGET_TOTAL
-  }, [budgets, profile])
+    return budgets.reduce((sum, budget) => sum + Number(budget.amount || 0), 0)
+  }, [budgets])
   const derived = useMemo(() => deriveDashboard(summary, transactions, money), [summary, transactions, money])
   const notifications = useMemo(() => buildNotifications(derived, budgets, goals, monthlyBudgetTotal, money), [budgets, derived, goals, monthlyBudgetTotal, money])
   const mobileAction = useMemo(() => {
@@ -510,7 +508,7 @@ function Dashboard({ auth }) {
         {activeView === 'Reports' && <ReportsView report={report} period={reportPeriod} onPeriodChange={setReportPeriod} money={money} />}
         {activeView === 'Settings' && <SettingsView profile={profile} token={auth.token} onSaved={(user) => { setProfile(user); auth.updateUser({ id: user.id, name: user.name, email: user.email }) }} onPasswordChanged={auth.logout} />}
       </Box>
-      <MobileBottomNav activeView={activeView} onNavigate={setActiveView} />
+      <MobileBottomNav activeView={activeView} onNavigate={setActiveView} onLogout={auth.logout} />
       {mobileAction && (
         <Button className="mobileFab" variant="contained" onClick={mobileAction} aria-label={`Add on ${activeView}`}>
           <AddRoundedIcon />
@@ -643,9 +641,9 @@ function SummaryGrid({ metrics, loading }) {
   )
 }
 
-function MonthlyBudget({ expense, budgetTotal = BUDGET_TOTAL, money }) {
-  const used = Math.min(100, Math.round((expense / budgetTotal) * 100))
-  const remaining = Math.max(0, budgetTotal - expense)
+function MonthlyBudget({ expense, budgetTotal = 0, money }) {
+  const used = budgetTotal > 0 ? Math.min(100, Math.round((expense / budgetTotal) * 100)) : 0
+  const remaining = budgetTotal > 0 ? Math.max(0, budgetTotal - expense) : 0
 
   return (
     <Card className="dashboardCard budgetCard">
@@ -887,6 +885,9 @@ function CategoriesView({ categories, onManage }) {
   return (
     <Stack spacing={2.5}>
       <FeatureHeader title="Category list" action="Edit Categories" onAction={onManage} />
+      <Button className="mobileInlineAction" variant="contained" startIcon={<EditRoundedIcon />} onClick={onManage}>
+        Edit Categories
+      </Button>
       <Grid container spacing={2}>
         {categories.map((category) => (
           <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={category.id}>
@@ -1583,13 +1584,29 @@ function GoalDialog({ open, goal, token, onClose, onSaved }) {
 function CategoryDialog({ open, categories, token, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', color: '#3B5BFF', type: 'EXPENSE' })
   const [error, setError] = useState('')
+  const [editingCategory, setEditingCategory] = useState(null)
 
-  async function addCategory(event) {
+  function resetCategoryForm() {
+    setEditingCategory(null)
+    setForm({ name: '', color: '#3B5BFF', type: 'EXPENSE' })
+  }
+
+  function editCategory(category) {
+    setError('')
+    setEditingCategory(category)
+    setForm({ name: category.name, color: category.color || '#3B5BFF', type: category.type || 'EXPENSE' })
+  }
+
+  async function saveCategory(event) {
     event.preventDefault()
     setError('')
     try {
-      await api('/api/categories', { token, method: 'POST', body: form })
-      setForm({ name: '', color: '#3B5BFF', type: 'EXPENSE' })
+      await api(editingCategory?.id ? `/api/categories/${editingCategory.id}` : '/api/categories', {
+        token,
+        method: editingCategory?.id ? 'PUT' : 'POST',
+        body: form,
+      })
+      resetCategoryForm()
       await onSaved()
     } catch (err) {
       setError(err.message)
@@ -1609,8 +1626,9 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Categories</DialogTitle>
       <DialogContent>
-        <Stack component="form" spacing={2} sx={{ mt: 1 }} onSubmit={addCategory}>
+        <Stack component="form" spacing={2} sx={{ mt: 1 }} onSubmit={saveCategory}>
           {error && <Alert severity="error">{error}</Alert>}
+          {editingCategory && <Alert severity="info">Editing {editingCategory.name}</Alert>}
           <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
             <TextField label="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
             <TextField label="Color" type="color" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} sx={{ width: { xs: '100%', sm: 120 } }} />
@@ -1621,7 +1639,8 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
                 <MenuItem value="INCOME">Income</MenuItem>
               </Select>
             </FormControl>
-            <Button type="submit" variant="contained">Add</Button>
+            <Button type="submit" variant="contained">{editingCategory ? 'Save' : 'Add'}</Button>
+            {editingCategory && <Button onClick={resetCategoryForm}>Cancel</Button>}
           </Stack>
         </Stack>
         <Divider sx={{ my: 2 }} />
@@ -1633,7 +1652,10 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
                 <Typography>{category.name}</Typography>
                 <Chip size="small" label={category.type || 'Any'} variant="outlined" />
               </Stack>
-              <IconButton onClick={() => deleteCategory(category.id)}><DeleteRoundedIcon /></IconButton>
+              <Stack direction="row">
+                <IconButton onClick={() => editCategory(category)}><EditRoundedIcon /></IconButton>
+                <IconButton onClick={() => deleteCategory(category.id)}><DeleteRoundedIcon /></IconButton>
+              </Stack>
             </Stack>
           ))}
         </Stack>
@@ -1711,7 +1733,7 @@ function MobilePreview({ summary, money }) {
   )
 }
 
-function MobileBottomNav({ activeView, onNavigate }) {
+function MobileBottomNav({ activeView, onNavigate, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const views = ['Dashboard', 'Transactions', 'Budgets', 'Reports']
   const value = Math.max(0, views.indexOf(activeView))
@@ -1758,6 +1780,9 @@ function MobileBottomNav({ activeView, onNavigate }) {
               </Grid>
             ))}
           </Grid>
+          <Button className="mobileSignOutButton" fullWidth startIcon={<PowerSettingsNewRoundedIcon />} onClick={onLogout}>
+            Sign out
+          </Button>
         </Stack>
       </Drawer>
     </Paper>

@@ -615,6 +615,18 @@
   background: #eef2ff !important;
 }
 
+.mobileInlineAction {
+  display: none !important;
+}
+
+.mobileSignOutButton {
+  min-height: 50px;
+  justify-content: center !important;
+  color: #ef4444 !important;
+  border: 1px solid #fecdd3 !important;
+  background: #fff1f2 !important;
+}
+
 .drawerMerchantAvatar {
   width: 52px;
   height: 52px;
@@ -1032,6 +1044,13 @@
 
   .featureHeader .MuiButton-root {
     display: none;
+  }
+
+  .mobileInlineAction {
+    display: inline-flex !important;
+    min-height: 46px;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #3b5bff, #2563eb) !important;
   }
 
   .transactionSearchCard {
