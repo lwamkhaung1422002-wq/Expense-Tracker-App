@@ -97,10 +97,10 @@ const theme = createTheme({
   },
   shape: { borderRadius: 18 },
   typography: {
-    fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-    h4: { fontWeight: 700, letterSpacing: '-0.01em' },
-    h5: { fontWeight: 700, letterSpacing: '-0.01em' },
-    h6: { fontWeight: 700, letterSpacing: '-0.005em' },
+    fontFamily: 'Inter, "Segoe UI", Roboto, Helvetica, Arial, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+    h4: { fontWeight: 700, letterSpacing: 0 },
+    h5: { fontWeight: 700, letterSpacing: 0 },
+    h6: { fontWeight: 700, letterSpacing: 0 },
     body1: { letterSpacing: 0 },
     body2: { letterSpacing: 0 },
     button: { fontWeight: 600, textTransform: 'none', letterSpacing: 0 },
@@ -1623,15 +1623,15 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ className: 'categoryDialogPaper' }}>
       <DialogTitle>Categories</DialogTitle>
       <DialogContent>
-        <Stack component="form" spacing={2} sx={{ mt: 1 }} onSubmit={saveCategory}>
+        <Stack component="form" spacing={1.5} className="categoryForm" onSubmit={saveCategory}>
           {error && <Alert severity="error">{error}</Alert>}
           {editingCategory && <Alert severity="info">Editing {editingCategory.name}</Alert>}
-          <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
+          <Box className="categoryFormGrid">
             <TextField label="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-            <TextField label="Color" type="color" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} sx={{ width: { xs: '100%', sm: 120 } }} />
+            <TextField label="Color" type="color" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} />
             <FormControl sx={{ minWidth: 140 }}>
               <InputLabel>Type</InputLabel>
               <Select label="Type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>
@@ -1639,7 +1639,9 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
                 <MenuItem value="INCOME">Income</MenuItem>
               </Select>
             </FormControl>
-            <Button type="submit" variant="contained">{editingCategory ? 'Save' : 'Add'}</Button>
+          </Box>
+          <Stack direction="row" className="categoryFormActions">
+            <Button type="submit" variant="contained">{editingCategory ? 'Save changes' : 'Add category'}</Button>
             {editingCategory && <Button onClick={resetCategoryForm}>Cancel</Button>}
           </Stack>
         </Stack>
@@ -1759,27 +1761,26 @@ function MobileBottomNav({ activeView, onNavigate, onLogout }) {
       </BottomNavigation>
       <Drawer anchor="bottom" open={moreOpen} onClose={() => setMoreOpen(false)} PaperProps={{ className: 'mobileMoreDrawer' }}>
         <Stack spacing={1.2}>
-          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', px: 0.5 }}>
             <Box>
-              <Typography variant="caption" color="text.secondary">More sections</Typography>
-              <Typography variant="h6">Expense Tracker</Typography>
+              <Typography variant="caption" color="text.secondary">Menu</Typography>
+              <Typography variant="h6">More</Typography>
             </Box>
             <IconButton onClick={() => setMoreOpen(false)}><CloseRoundedIcon /></IconButton>
           </Stack>
-          <Grid container spacing={1.2}>
+          <Stack className="mobileMoreList">
             {moreItems.map((item) => (
-              <Grid size={{ xs: 6 }} key={item.label}>
-                <Button
-                  fullWidth
-                  className={`mobileMoreButton ${activeView === item.label ? 'active' : ''}`}
-                  startIcon={item.icon}
-                  onClick={() => navigate(item.label)}
-                >
-                  {item.label}
-                </Button>
-              </Grid>
+              <Button
+                key={item.label}
+                fullWidth
+                className={`mobileMoreButton ${activeView === item.label ? 'active' : ''}`}
+                startIcon={item.icon}
+                onClick={() => navigate(item.label)}
+              >
+                {item.label}
+              </Button>
             ))}
-          </Grid>
+          </Stack>
           <Button className="mobileSignOutButton" fullWidth startIcon={<PowerSettingsNewRoundedIcon />} onClick={onLogout}>
             Sign out
           </Button>
@@ -1959,5 +1960,6 @@ function EmptyState({ text }) {
 }
 
 export default App
+
 
 
