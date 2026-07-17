@@ -63,6 +63,14 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Expense Tracker API",
+    status: "ok",
+    health: "/health",
+  });
+});
+
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", passwordResetLimiter);
