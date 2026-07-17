@@ -1,0 +1,16 @@
+{
+  "name": "expense-tracker-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n API,APP -c blue,green \"npm run dev:api\" \"npm run dev:app\"",
+    "dev:api": "npm --prefix Expense-Tracker-Api run dev",
+    "dev:app": "npm --prefix Expense-Tracker-App run dev",
+    "build": "npm --prefix Expense-Tracker-App run build",
+    "lint": "npm --prefix Expense-Tracker-Api run lint && npm --prefix Expense-Tracker-App run lint",
+    "prisma:generate": "npm --prefix Expense-Tracker-Api run prisma:generate",
+    "prisma:migrate": "npm --prefix Expense-Tracker-Api run prisma:migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

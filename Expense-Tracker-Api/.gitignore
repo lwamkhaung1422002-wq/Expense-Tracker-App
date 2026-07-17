@@ -1,0 +1,11 @@
+node_modules
+*.log
+# Keep environment variables out of version control
+.env
+
+/prisma/.generated/prisma
+
+# Local SQLite data
+*.db
+*.db-shm
+*.db-wal
