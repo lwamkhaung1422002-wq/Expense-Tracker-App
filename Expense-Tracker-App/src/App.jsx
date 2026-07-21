@@ -173,7 +173,18 @@ function AuthScreen({ onAuth, onPreview, compact = false }) {
           <Button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>Register</Button>
         </Stack>
         <Stack component="form" spacing={2} sx={{ mt: 3 }} onSubmit={submit}>
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && (
+            <Alert
+              severity="error"
+              action={onPreview ? (
+                <Button color="inherit" size="small" onClick={onPreview}>
+                  Preview
+                </Button>
+              ) : null}
+            >
+              {error}
+            </Alert>
+          )}
           {mode === 'register' && (
             <TextField
               label="Name"
