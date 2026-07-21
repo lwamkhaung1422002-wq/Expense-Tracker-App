@@ -6,6 +6,7 @@ import morgan from "morgan";
 import { env } from "./config/env.js";
 import { requireAuth } from "./middleware/auth.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
+import { requestContext } from "./middleware/requestContext.js";
 import authRoutes from "./routes/auth.js";
 import budgetRoutes from "./routes/budgets.js";
 import categoryRoutes from "./routes/categories.js";
@@ -21,6 +22,7 @@ export const app = express();
 app.set("etag", false);
 app.disable("x-powered-by");
 if (env.trustProxy) app.set("trust proxy", 1);
+app.use(requestContext);
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "same-site" },
@@ -40,7 +42,31 @@ app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 });
-app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
+morgan.token("id", (req) => req.id);
+app.use(
+  morgan((tokens, req, res) => {
+    if (env.nodeEnv !== "production") {
+      return [
+        tokens.method(req, res),
+        tokens.url(req, res),
+        tokens.status(req, res),
+        `${tokens["response-time"](req, res)} ms`,
+      ].join(" ");
+    }
+
+    return JSON.stringify({
+      event: "http_request",
+      requestId: tokens.id(req, res),
+      method: tokens.method(req, res),
+      path: tokens.url(req, res),
+      status: Number(tokens.status(req, res)),
+      responseTimeMs: Number(tokens["response-time"](req, res)),
+      contentLength: tokens.res(req, res, "content-length") || "0",
+      ip: tokens["remote-addr"](req, res),
+      userAgent: tokens["user-agent"](req, res),
+    });
+  }),
+);
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
 
 const authLimiter = rateLimit({

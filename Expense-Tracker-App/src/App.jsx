@@ -30,7 +30,6 @@ import {
   TextField,
   Typography,
   Tooltip as MuiTooltip,
-  createTheme,
   ThemeProvider,
   useMediaQuery,
 } from '@mui/material'
@@ -42,7 +41,6 @@ import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded'
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
@@ -72,67 +70,23 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { theme } from './app/theme'
+import { useAuth } from './hooks/useAuth'
+import { api } from './services/apiClient'
+import {
+  compactRecordedAt,
+  dateInput,
+  friendlyDate,
+  friendlyMonth,
+  localDateTimeInputToIso,
+  monthNow,
+  recordedAt,
+  toLocalDateTimeInput,
+  userTimezone,
+} from './utils/dateTime'
+import { createMoneyFormatter, currencyOptions } from './utils/money'
+import { withQuery } from './utils/query'
 import './App.css'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
-const currencyOptions = ['USD', 'MMK', 'THB', 'SGD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR']
-
-function createMoneyFormatter(code = 'USD') {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: code,
-    maximumFractionDigits: code === 'MMK' || code === 'JPY' ? 0 : 2,
-  })
-}
-
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: { main: '#3B5BFF' },
-    success: { main: '#22C55E' },
-    error: { main: '#FF4D4F' },
-    warning: { main: '#F59E0B' },
-    background: { default: '#F8FAFC', paper: '#FFFFFF' },
-    text: { primary: '#0F172A', secondary: '#64748B' },
-  },
-  shape: { borderRadius: 18 },
-  typography: {
-    fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-    h4: { fontSize: '2.25rem', lineHeight: 1.08, fontWeight: 750, letterSpacing: '-0.02em' },
-    h5: { fontSize: '1.35rem', lineHeight: 1.18, fontWeight: 750, letterSpacing: '-0.012em' },
-    h6: { fontSize: '1.02rem', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.006em' },
-    subtitle1: { fontSize: '0.98rem', lineHeight: 1.45 },
-    body1: { fontSize: '0.95rem', lineHeight: 1.5, letterSpacing: 0 },
-    body2: { fontSize: '0.86rem', lineHeight: 1.45, letterSpacing: 0 },
-    caption: { fontSize: '0.72rem', lineHeight: 1.35 },
-    button: { fontSize: '0.9rem', fontWeight: 700, textTransform: 'none', letterSpacing: 0 },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          border: '1px solid #E5EAF2',
-          borderRadius: 20,
-          boxShadow: '0 18px 45px rgba(15, 23, 42, 0.06)',
-        },
-      },
-    },
-    MuiButton: { styleOverrides: { root: { borderRadius: 12, boxShadow: 'none' } } },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': { borderRadius: 12, background: '#FFFFFF', fontSize: '0.95rem' },
-          '& .MuiInputLabel-root': { fontSize: '0.9rem' },
-        },
-      },
-    },
-    MuiSelect: {
-      styleOverrides: {
-        root: { borderRadius: 12, background: '#FFFFFF', fontSize: '0.95rem' },
-      },
-    },
-  },
-})
 
 const navItems = [
   { label: 'Dashboard', icon: <DashboardRoundedIcon />, enabled: true },
@@ -144,60 +98,6 @@ const navItems = [
   { label: 'Goals', icon: <FlagRoundedIcon />, enabled: true },
   { label: 'Settings', icon: <SettingsRoundedIcon />, enabled: true },
 ]
-
-function monthNow() {
-  return new Date().toISOString().slice(0, 7)
-}
-
-function dateInput(value) {
-  return value ? new Date(value).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
-}
-
-function friendlyDate(value) {
-  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function friendlyMonth(value) {
-  const [year, month] = value.split('-').map(Number)
-  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-}
-
-function userTimezone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-}
-
-function withQuery(path, params) {
-  const query = new URLSearchParams()
-  Object.entries(params).forEach(([key, value]) => {
-    if (value != null && value !== '') query.set(key, value)
-  })
-  return `${path}?${query.toString()}`
-}
-
-function recordedAt(value) {
-  return new Date(value).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
-function compactRecordedAt(value) {
-  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-function toLocalDateTimeInput(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  const offset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
-}
-
-function localDateTimeInputToIso(value) {
-  return value ? new Date(value).toISOString() : undefined
-}
 
 function passwordVisibilitySlotProps(visible, onToggle, label = 'password') {
   return {
@@ -217,60 +117,6 @@ function passwordVisibilitySlotProps(visible, onToggle, label = 'password') {
       ),
     },
   }
-}
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  let response
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    })
-  } catch {
-    throw new Error(`Cannot reach the API at ${API_URL}. Check the backend deployment and VITE_API_URL setting.`)
-  }
-
-  if (response.status === 204) return null
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    const error = new Error(data.message || 'Request failed')
-    error.status = response.status
-    throw error
-  }
-  return data
-}
-
-function useAuth() {
-  const [token, setToken] = useState(() => localStorage.getItem('expense-token'))
-  const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem('expense-user')
-    return raw ? JSON.parse(raw) : null
-  })
-
-  const saveAuth = useCallback((payload) => {
-    localStorage.setItem('expense-token', payload.token)
-    localStorage.setItem('expense-user', JSON.stringify(payload.user))
-    setToken(payload.token)
-    setUser(payload.user)
-  }, [])
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('expense-token')
-    localStorage.removeItem('expense-user')
-    setToken(null)
-    setUser(null)
-  }, [])
-
-  const updateUser = useCallback((nextUser) => {
-    localStorage.setItem('expense-user', JSON.stringify(nextUser))
-    setUser(nextUser)
-  }, [])
-
-  return useMemo(() => ({ token, user, saveAuth, updateUser, logout }), [logout, saveAuth, token, updateUser, user])
 }
 
 function App() {
@@ -1670,74 +1516,6 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
   )
 }
 
-function MobilePreview({ summary, money }) {
-  return (
-    <Box className="rightPreview">
-      <Paper className="phoneFrame" elevation={0}>
-        <Stack direction="row" className="phoneStatus" sx={{ justifyContent: 'space-between' }}>
-          <Typography fontWeight={600}>9:41</Typography>
-          <Typography fontSize={12}>WiFi LTE</Typography>
-        </Stack>
-        <Stack direction="row" sx={{ my: 2, justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography fontWeight={600}>Dashboard</Typography>
-          <AccountBalanceWalletRoundedIcon fontSize="small" color="primary" />
-        </Stack>
-        <Box className="phoneBalance">
-          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-            <Typography variant="caption">Total Balance</Typography>
-            <MoreHorizRoundedIcon fontSize="small" />
-          </Stack>
-          <Typography variant="h5">{money.format(summary.net)}</Typography>
-          <Typography variant="caption">Live monthly balance</Typography>
-          <SmallSparkline data={summary.trend} />
-        </Box>
-        <Stack direction="row" gap={1.2} sx={{ my: 1.5 }}>
-          <PhoneMiniCard label="Income" value={money.format(summary.income)} icon={<ArrowUpwardRoundedIcon />} color="#22C55E" />
-          <PhoneMiniCard label="Expenses" value={money.format(summary.expense)} icon={<ArrowDownwardRoundedIcon />} color="#FF4D4F" />
-        </Stack>
-        <Paper className="phoneCard" elevation={0}>
-          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-            <Typography fontWeight={600}>Spending Overview</Typography>
-            <Typography variant="caption">Monthly</Typography>
-          </Stack>
-          <Box className="phoneChart">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={summary.trend}>
-                <Line type="monotone" dataKey="income" stroke="#22C55E" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="expense" stroke="#FF4D4F" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Box>
-        </Paper>
-        <Paper className="phoneCard" elevation={0}>
-          <Stack direction="row" sx={{ mb: 1, justifyContent: 'space-between' }}>
-            <Typography fontWeight={600}>Recent Transactions</Typography>
-            <Typography variant="caption" color="primary">View All</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">{summary.recentLabel}</Typography>
-        </Paper>
-      </Paper>
-      <Paper className="mobileSheetMock" elevation={0}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography fontWeight={600}>Add Transaction</Typography>
-          <CloseRoundedIcon fontSize="small" />
-        </Stack>
-        <Typography className="sheetAmount">$ 120.00</Typography>
-        {['Merchant: Starbucks', 'Category: Food & Dining', 'Date: Today', 'Wallet: Visa **** 2841', 'Notes: Morning coffee'].map((row) => (
-          <Box className="sheetField" key={row}><Typography fontWeight={600}>{row}</Typography></Box>
-        ))}
-        <Box className="sheetField">
-          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-            <Typography fontWeight={600}>Add Receipt</Typography>
-            <CreditCardRoundedIcon color="primary" fontSize="small" />
-          </Stack>
-        </Box>
-        <Button variant="contained" fullWidth>Save Transaction</Button>
-      </Paper>
-    </Box>
-  )
-}
-
 function MobileBottomNav({ activeView, onNavigate, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const views = ['Dashboard', 'Transactions', 'Budgets', 'Reports']
@@ -1927,18 +1705,6 @@ function BudgetStat({ label, value, color = '#0F172A' }) {
       <Typography color="text.secondary">{label}</Typography>
       <Typography fontWeight={600} sx={{ color }} noWrap>{value}</Typography>
     </Stack>
-  )
-}
-
-function PhoneMiniCard({ label, value, icon, color }) {
-  return (
-    <Paper className="phoneMiniCard" elevation={0}>
-      <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-        <Typography variant="caption" color="text.secondary">{label}</Typography>
-        <Avatar sx={{ bgcolor: `${color}18`, color, width: 26, height: 26 }}>{icon}</Avatar>
-      </Stack>
-      <Typography fontWeight={600}>{value}</Typography>
-    </Paper>
   )
 }
 

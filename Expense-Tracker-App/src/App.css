@@ -762,32 +762,6 @@
   font-weight: 700 !important;
 }
 
-.rightPreview {
-  display: grid;
-  gap: 22px;
-  align-content: start;
-  padding-top: 0;
-}
-
-.phoneFrame,
-.mobileSheetMock {
-  border: 1px solid #e5eaf2;
-  border-radius: 28px;
-  background: #fff;
-  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.09);
-}
-
-.phoneFrame {
-  width: 320px;
-  min-height: 680px;
-  padding: 18px;
-  justify-self: center;
-}
-
-.phoneStatus {
-  font-size: 12px;
-}
-
 .phoneBalance {
   position: relative;
   overflow: hidden;
@@ -804,53 +778,6 @@
   bottom: 8px;
   width: 120px;
   height: 44px;
-}
-
-.phoneMiniCard,
-.phoneCard {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #e5eaf2;
-  border-radius: 16px;
-}
-
-.phoneChart {
-  height: 112px;
-}
-
-.phoneBottom {
-  margin-top: 12px;
-  overflow: hidden;
-  border-radius: 18px;
-}
-
-.phoneAdd .MuiSvgIcon-root {
-  width: 40px;
-  height: 40px;
-  padding: 8px;
-  border-radius: 50%;
-  color: #fff;
-  background: linear-gradient(135deg, #3b5bff, #2563eb);
-}
-
-.mobileSheetMock {
-  width: 320px;
-  justify-self: center;
-  padding: 20px;
-}
-
-.sheetAmount {
-  margin: 14px 0;
-  color: #3b5bff;
-  font-size: 30px;
-  font-weight: 700;
-}
-
-.sheetField {
-  padding: 10px 12px;
-  margin-bottom: 9px;
-  border: 1px solid #e5eaf2;
-  border-radius: 12px;
 }
 
 .categoryLine {
@@ -983,10 +910,6 @@
 @media (max-width: 1480px) {
   .dashboardRoot {
     grid-template-columns: 230px minmax(0, 1fr);
-  }
-
-  .rightPreview {
-    display: none;
   }
 
   .topHeader {

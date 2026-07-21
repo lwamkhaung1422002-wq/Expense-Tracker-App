@@ -28,18 +28,19 @@ TRUST_PROXY="false"
 
 This API uses PostgreSQL through Prisma. Neon PostgreSQL is recommended for testing and production because it keeps data outside the web service container.
 
-## Render deployment
+## Railway deployment
 
-This API is ready to deploy on Render as a Node web service using an external PostgreSQL database such as Neon.
+This API is ready to deploy on Railway using the root `Dockerfile` and `railway.json`. Neon PostgreSQL is recommended for persistent data.
 
 Recommended settings:
 
 ```text
-Root directory: Expense-Tracker-Api
-Build command: npm run render:build
-Pre-deploy command: npm run render:predeploy
-Start command: npm start
+Builder: Dockerfile
+Public domain port: 8080
 Health check path: /health
+Custom build command: leave empty
+Custom start command: leave empty
+Pre-deploy step in Railway UI: leave empty
 ```
 
 Environment variables:
@@ -48,15 +49,23 @@ Environment variables:
 NODE_ENV=production
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
 DIRECT_URL=postgresql://USER:PASSWORD@DIRECT_HOST/DB?sslmode=require
-JWT_SECRET=<Render can generate this, or use your own long random secret>
+JWT_SECRET=<use a unique random secret of at least 32 characters>
 JWT_EXPIRES_IN=7d
 CLIENT_ORIGIN=https://your-netlify-site.netlify.app
 TRUST_PROXY=true
 ```
 
-If you use the included `render.yaml`, Render will prompt you for `DATABASE_URL` and `CLIENT_ORIGIN`.
-
 For Neon, use the pooled connection string for `DATABASE_URL` and the direct, non-pooled connection string for `DIRECT_URL`. Prisma Migrate needs the direct URL when applying migrations.
+
+## Smoke test
+
+After deployment, verify the API with:
+
+```bash
+API_URL=https://your-railway-domain.up.railway.app npm run smoke:api
+```
+
+The smoke test registers a disposable user, checks `/me`, loads categories, creates one transaction, and checks the monthly summary.
 
 ## Production security checklist
 

@@ -7,6 +7,7 @@
     "dev:app": "npm --prefix Expense-Tracker-App run dev",
     "build": "npm --prefix Expense-Tracker-App run build",
     "lint": "npm --prefix Expense-Tracker-Api run lint && npm --prefix Expense-Tracker-App run lint",
+    "smoke:api": "node scripts/smoke-api.js",
     "prisma:generate": "npm --prefix Expense-Tracker-Api run prisma:generate",
     "prisma:migrate": "npm --prefix Expense-Tracker-Api run prisma:migrate",
     "railway:build": "npm --prefix Expense-Tracker-Api run prisma:generate",
