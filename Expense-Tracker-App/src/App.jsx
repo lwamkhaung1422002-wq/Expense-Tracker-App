@@ -72,6 +72,7 @@ import {
 } from 'recharts'
 import { theme } from './app/theme'
 import { useAuth } from './hooks/useAuth'
+import { getPreviewSnapshot, previewUser } from './preview/previewData'
 import { api } from './services/apiClient'
 import {
   compactRecordedAt,
@@ -125,12 +126,16 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {auth.token ? <Dashboard auth={auth} /> : <AuthScreen onAuth={auth.saveAuth} />}
+      {auth.token || auth.isPreview ? (
+        <Dashboard auth={auth} />
+      ) : (
+        <AuthScreen onAuth={auth.saveAuth} onPreview={() => auth.startPreview(previewUser)} />
+      )}
     </ThemeProvider>
   )
 }
 
-function AuthScreen({ onAuth }) {
+function AuthScreen({ onAuth, onPreview, compact = false }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -154,7 +159,7 @@ function AuthScreen({ onAuth }) {
   }
 
   return (
-    <Box className="authRoot">
+    <Box className={`authRoot ${compact ? 'compactAuthRoot' : ''}`}>
       <Paper className="authCard" elevation={0}>
         <Stack direction="row" gap={1.5} sx={{ mb: 3, alignItems: 'center' }}>
           <Box className="logoMark">$</Box>
@@ -196,9 +201,14 @@ function AuthScreen({ onAuth }) {
           <Button type="submit" variant="contained" className="authSubmitButton" disabled={loading}>
             {loading ? 'Please wait...' : mode === 'login' ? 'Login' : 'Create account'}
           </Button>
+          {onPreview && (
+            <Button type="button" variant="outlined" className="previewAuthButton" onClick={onPreview}>
+              Browse in Preview Mode
+            </Button>
+          )}
         </Stack>
       </Paper>
-      <Paper className="authPreview" elevation={0}>
+      {!compact && <Paper className="authPreview" elevation={0}>
         <Typography variant="h4">Expense Tracker</Typography>
         <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
           Live dashboards, category insights, and fast expense entry with your real account data.
@@ -209,12 +219,13 @@ function AuthScreen({ onAuth }) {
           <Typography variant="caption">+ 8.2% from last month</Typography>
           <SmallSparkline data={sampleTrend()} />
         </Box>
-      </Paper>
+      </Paper>}
     </Box>
   )
 }
 
 function Dashboard({ auth }) {
+  const isPreview = auth.isPreview
   const [activeView, setActiveView] = useState('Dashboard')
   const [month, setMonth] = useState(monthNow())
   const [reportPeriod, setReportPeriod] = useState('monthly')
@@ -233,9 +244,20 @@ function Dashboard({ auth }) {
   const [walletDialog, setWalletDialog] = useState(null)
   const [budgetDialog, setBudgetDialog] = useState(null)
   const [goalDialog, setGoalDialog] = useState(null)
+  const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const timezone = useMemo(() => userTimezone(), [])
 
   const load = useCallback(async () => {
+    if (isPreview) {
+      const snapshot = getPreviewSnapshot({ month })
+      setCategories(snapshot.categories)
+      setTransactions(snapshot.transactions)
+      setSummary(snapshot.summary)
+      setError('')
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
@@ -253,9 +275,20 @@ function Dashboard({ auth }) {
     } finally {
       setLoading(false)
     }
-  }, [auth, month, timezone])
+  }, [auth, isPreview, month, timezone])
 
   const loadExtended = useCallback(async () => {
+    if (isPreview) {
+      const snapshot = getPreviewSnapshot({ month })
+      setWallets(snapshot.wallets)
+      setBudgets(snapshot.budgets)
+      setGoals(snapshot.goals)
+      setProfile(snapshot.profile)
+      setReport(snapshot.report)
+      setError('')
+      return
+    }
+
     try {
       const [walletData, budgetData, goalData, profileData, reportData] = await Promise.all([
         api('/api/wallets', { token: auth.token }),
@@ -273,7 +306,7 @@ function Dashboard({ auth }) {
       setError(err.message)
       if (err.status === 401) auth.logout()
     }
-  }, [auth, month, reportPeriod, timezone])
+  }, [auth, isPreview, month, reportPeriod, timezone])
 
   useEffect(() => {
     load()
@@ -282,29 +315,43 @@ function Dashboard({ auth }) {
 
   const currencyCode = profile?.currency || 'USD'
   const money = useMemo(() => createMoneyFormatter(currencyCode), [currencyCode])
+  const requestAccount = useCallback(() => {
+    setAuthPromptOpen(true)
+  }, [])
+  const closeAuthPrompt = useCallback(() => {
+    setAuthPromptOpen(false)
+  }, [])
+  const saveRealAuth = useCallback((payload) => {
+    auth.saveAuth(payload)
+    setAuthPromptOpen(false)
+  }, [auth])
   const monthlyBudgetTotal = useMemo(() => {
     return budgets.reduce((sum, budget) => sum + Number(budget.amount || 0), 0)
   }, [budgets])
   const derived = useMemo(() => deriveDashboard(summary, transactions, money), [summary, transactions, money])
   const notifications = useMemo(() => buildNotifications(derived, budgets, goals, monthlyBudgetTotal, money), [budgets, derived, goals, monthlyBudgetTotal, money])
   const mobileAction = useMemo(() => {
-    if (activeView === 'Budgets') return () => setBudgetDialog({ month })
-    if (activeView === 'Wallets') return () => setWalletDialog({})
-    if (activeView === 'Goals') return () => setGoalDialog({})
-    if (activeView === 'Categories') return () => setCategoryDialog(true)
-    if (activeView === 'Dashboard' || activeView === 'Transactions' || activeView === 'Reports') return () => setTransactionDialog({})
+    if (activeView === 'Budgets') return () => (isPreview ? requestAccount() : setBudgetDialog({ month }))
+    if (activeView === 'Wallets') return () => (isPreview ? requestAccount() : setWalletDialog({}))
+    if (activeView === 'Goals') return () => (isPreview ? requestAccount() : setGoalDialog({}))
+    if (activeView === 'Categories') return () => (isPreview ? requestAccount() : setCategoryDialog(true))
+    if (activeView === 'Dashboard' || activeView === 'Transactions' || activeView === 'Reports') return () => (isPreview ? requestAccount() : setTransactionDialog({}))
     return null
-  }, [activeView, month])
+  }, [activeView, isPreview, month, requestAccount])
   const headerAction = useMemo(() => {
-    if (activeView === 'Budgets') return { label: 'Add Budget', action: () => setBudgetDialog({ month }) }
-    if (activeView === 'Wallets') return { label: 'Add Wallet', action: () => setWalletDialog({}) }
-    if (activeView === 'Goals') return { label: 'Add Goal', action: () => setGoalDialog({}) }
-    if (activeView === 'Categories') return { label: 'Manage Categories', action: () => setCategoryDialog(true) }
+    if (activeView === 'Budgets') return { label: 'Add Budget', action: () => (isPreview ? requestAccount() : setBudgetDialog({ month })) }
+    if (activeView === 'Wallets') return { label: 'Add Wallet', action: () => (isPreview ? requestAccount() : setWalletDialog({})) }
+    if (activeView === 'Goals') return { label: 'Add Goal', action: () => (isPreview ? requestAccount() : setGoalDialog({})) }
+    if (activeView === 'Categories') return { label: 'Manage Categories', action: () => (isPreview ? requestAccount() : setCategoryDialog(true)) }
     if (activeView === 'Settings') return null
-    return { label: 'Add Transaction', action: () => setTransactionDialog({}) }
-  }, [activeView, month])
+    return { label: 'Add Transaction', action: () => (isPreview ? requestAccount() : setTransactionDialog({})) }
+  }, [activeView, isPreview, month, requestAccount])
 
   async function deleteTransaction(id) {
+    if (isPreview) {
+      requestAccount()
+      return
+    }
     await api(`/api/transactions/${id}`, { token: auth.token, method: 'DELETE' })
     await load()
   }
@@ -318,6 +365,7 @@ function Dashboard({ auth }) {
     <Box className="dashboardRoot">
       <Sidebar
         user={auth.user}
+        isPreview={isPreview}
         activeView={activeView}
         budgetTotal={monthlyBudgetTotal}
         expense={derived.expense}
@@ -334,6 +382,8 @@ function Dashboard({ auth }) {
           actionLabel={headerAction?.label}
           onAdd={headerAction?.action}
           onLogout={auth.logout}
+          isPreview={isPreview}
+          onCreateAccount={requestAccount}
         />
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {activeView === 'Dashboard' && (
@@ -349,13 +399,13 @@ function Dashboard({ auth }) {
             </Grid>
           </>
         )}
-        {activeView === 'Transactions' && <TransactionsView transactions={transactions} loading={loading} money={money} onEdit={setTransactionDialog} onDelete={deleteTransaction} />}
-        {activeView === 'Categories' && <CategoriesView categories={categories} onManage={() => setCategoryDialog(true)} />}
-        {activeView === 'Wallets' && <WalletsView wallets={wallets} money={money} token={auth.token} onAdd={() => setWalletDialog({})} onEdit={setWalletDialog} onReload={loadExtended} />}
-        {activeView === 'Budgets' && <BudgetsView budgets={budgets} month={month} expense={derived.expense} expenseCategories={derived.expenseCategories} money={money} token={auth.token} onAdd={() => setBudgetDialog({ month })} onEdit={setBudgetDialog} onReload={loadExtended} />}
-        {activeView === 'Goals' && <GoalsView goals={goals} money={money} token={auth.token} onAdd={() => setGoalDialog({})} onEdit={setGoalDialog} onReload={loadExtended} />}
+        {activeView === 'Transactions' && <TransactionsView transactions={transactions} loading={loading} money={money} onEdit={isPreview ? requestAccount : setTransactionDialog} onDelete={deleteTransaction} />}
+        {activeView === 'Categories' && <CategoriesView categories={categories} onManage={isPreview ? requestAccount : () => setCategoryDialog(true)} />}
+        {activeView === 'Wallets' && <WalletsView wallets={wallets} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setWalletDialog({})} onEdit={isPreview ? requestAccount : setWalletDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
+        {activeView === 'Budgets' && <BudgetsView budgets={budgets} month={month} expense={derived.expense} expenseCategories={derived.expenseCategories} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setBudgetDialog({ month })} onEdit={isPreview ? requestAccount : setBudgetDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
+        {activeView === 'Goals' && <GoalsView goals={goals} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setGoalDialog({})} onEdit={isPreview ? requestAccount : setGoalDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
         {activeView === 'Reports' && <ReportsView report={report} period={reportPeriod} onPeriodChange={setReportPeriod} money={money} />}
-        {activeView === 'Settings' && <SettingsView profile={profile} token={auth.token} onSaved={(user) => { setProfile(user); auth.updateUser({ id: user.id, name: user.name, email: user.email }) }} onPasswordChanged={auth.logout} />}
+        {activeView === 'Settings' && <SettingsView profile={profile} token={auth.token} isPreview={isPreview} onProtectedAction={requestAccount} onSaved={(user) => { setProfile(user); auth.updateUser({ id: user.id, name: user.name, email: user.email }) }} onPasswordChanged={auth.logout} />}
       </Box>
       <MobileBottomNav activeView={activeView} onNavigate={setActiveView} onLogout={auth.logout} />
       {mobileAction && (
@@ -382,11 +432,12 @@ function Dashboard({ auth }) {
       <WalletDialog open={Boolean(walletDialog)} wallet={walletDialog} token={auth.token} onClose={() => setWalletDialog(null)} onSaved={loadExtended} />
       <BudgetDialog open={Boolean(budgetDialog)} budget={budgetDialog} categories={categories} token={auth.token} onClose={() => setBudgetDialog(null)} onSaved={loadExtended} />
       <GoalDialog open={Boolean(goalDialog)} goal={goalDialog} token={auth.token} onClose={() => setGoalDialog(null)} onSaved={loadExtended} />
+      <AuthPromptDialog open={authPromptOpen} onClose={closeAuthPrompt} onAuth={saveRealAuth} />
     </Box>
   )
 }
 
-function Sidebar({ user, activeView, budgetTotal, expense, money, onNavigate, onLogout }) {
+function Sidebar({ user, isPreview, activeView, budgetTotal, expense, money, onNavigate, onLogout }) {
   const budgetUsed = budgetTotal > 0 ? Math.min(100, Math.round((expense / budgetTotal) * 100)) : 0
 
   return (
@@ -412,7 +463,7 @@ function Sidebar({ user, activeView, budgetTotal, expense, money, onNavigate, on
           <Avatar>{user?.name?.slice(0, 1) || 'U'}</Avatar>
           <Box flex={1}>
             <Typography fontWeight={600}>{user?.name || 'User'}</Typography>
-            <Typography variant="caption" color="text.secondary">Signed in</Typography>
+            <Typography variant="caption" color="text.secondary">{isPreview ? 'Preview mode' : 'Signed in'}</Typography>
           </Box>
           <MuiTooltip title="Sign out">
             <IconButton size="small" className="profileLogoutButton" onClick={onLogout} aria-label="Sign out">
@@ -432,11 +483,17 @@ function Sidebar({ user, activeView, budgetTotal, expense, money, onNavigate, on
   )
 }
 
-function Header({ title, month, onMonthChange, actionLabel, onAdd, onLogout }) {
+function Header({ title, month, onMonthChange, actionLabel, onAdd, onLogout, isPreview, onCreateAccount }) {
   return (
     <Box className="topHeader">
       <Box className="headerTitle">
         <Typography variant="h4">{title}</Typography>
+        {isPreview && (
+          <Stack direction="row" gap={1} className="previewHeaderMeta">
+            <Chip size="small" label="Preview Mode" color="primary" variant="outlined" />
+            <Typography variant="caption" color="text.secondary">Sample data only</Typography>
+          </Stack>
+        )}
       </Box>
       <Stack className="headerControls" direction={{ xs: 'column', sm: 'row' }} gap={1.25}>
         <TextField
@@ -456,6 +513,11 @@ function Header({ title, month, onMonthChange, actionLabel, onAdd, onLogout }) {
         {actionLabel && (
           <Button variant="contained" startIcon={<AddRoundedIcon />} className="addButton" onClick={onAdd}>
             {actionLabel}
+          </Button>
+        )}
+        {isPreview && (
+          <Button variant="outlined" className="createAccountButton" onClick={onCreateAccount}>
+            Create Account
           </Button>
         )}
         <MuiTooltip title="Sign out">
@@ -758,8 +820,12 @@ function CategoriesView({ categories, onManage }) {
   )
 }
 
-function WalletsView({ wallets, money, token, onAdd, onEdit, onReload }) {
+function WalletsView({ wallets, money, token, onAdd, onEdit, onDelete, onReload }) {
   async function remove(id) {
+    if (onDelete) {
+      onDelete()
+      return
+    }
     await api(`/api/wallets/${id}`, { token, method: 'DELETE' })
     await onReload()
   }
@@ -791,10 +857,14 @@ function WalletsView({ wallets, money, token, onAdd, onEdit, onReload }) {
   )
 }
 
-function BudgetsView({ budgets, month, expense, expenseCategories, money, token, onAdd, onEdit, onReload }) {
+function BudgetsView({ budgets, month, expense, expenseCategories, money, token, onAdd, onEdit, onDelete, onReload }) {
   const isCompact = useMediaQuery('(max-width:760px)')
 
   async function remove(id) {
+    if (onDelete) {
+      onDelete()
+      return
+    }
     await api(`/api/budgets/${id}`, { token, method: 'DELETE' })
     await onReload()
   }
@@ -863,8 +933,12 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
   )
 }
 
-function GoalsView({ goals, money, token, onAdd, onEdit, onReload }) {
+function GoalsView({ goals, money, token, onAdd, onEdit, onDelete, onReload }) {
   async function remove(id) {
+    if (onDelete) {
+      onDelete()
+      return
+    }
     await api(`/api/goals/${id}`, { token, method: 'DELETE' })
     await onReload()
   }
@@ -1010,7 +1084,7 @@ function MetricStrip({ label, value, color }) {
   )
 }
 
-function SettingsView({ profile, token, onSaved, onPasswordChanged }) {
+function SettingsView({ profile, token, isPreview, onProtectedAction, onSaved, onPasswordChanged }) {
   const [form, setForm] = useState({ name: '', currency: 'USD' })
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [visiblePasswords, setVisiblePasswords] = useState({ current: false, next: false, confirm: false })
@@ -1025,6 +1099,10 @@ function SettingsView({ profile, token, onSaved, onPasswordChanged }) {
 
   async function submit(event) {
     event.preventDefault()
+    if (isPreview) {
+      onProtectedAction()
+      return
+    }
     const data = await api('/api/profile', { token, method: 'PUT', body: form })
     onSaved(data.user)
     setMessage('Settings saved.')
@@ -1032,6 +1110,10 @@ function SettingsView({ profile, token, onSaved, onPasswordChanged }) {
 
   async function submitPassword(event) {
     event.preventDefault()
+    if (isPreview) {
+      onProtectedAction()
+      return
+    }
     setPasswordError('')
     setPasswordMessage('')
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -1061,6 +1143,11 @@ function SettingsView({ profile, token, onSaved, onPasswordChanged }) {
   return (
     <Stack spacing={2.5}>
       <FeatureHeader title="Profile" />
+      {isPreview && (
+        <Alert severity="info" action={<Button color="inherit" size="small" onClick={onProtectedAction}>Create Account</Button>}>
+          Preview settings are read-only. Create an account to save preferences and password changes.
+        </Alert>
+      )}
       <Card className="dashboardCard">
         <CardContent>
           <Stack component="form" spacing={2} onSubmit={submit}>
@@ -1512,6 +1599,27 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
         </Stack>
       </DialogContent>
       <DialogActions><Button onClick={onClose}>Done</Button></DialogActions>
+    </Dialog>
+  )
+}
+
+function AuthPromptDialog({ open, onClose, onAuth }) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{ className: 'authPromptDialog' }}>
+      <DialogTitle>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h6">Create an account to continue</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Preview mode is read-only and uses sample data.
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} aria-label="Close login dialog"><CloseRoundedIcon /></IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent>
+        <AuthScreen onAuth={onAuth} compact />
+      </DialogContent>
     </Dialog>
   )
 }

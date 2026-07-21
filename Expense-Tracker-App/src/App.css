@@ -54,10 +54,36 @@
   box-shadow: 0 12px 24px rgba(59, 91, 255, 0.2) !important;
 }
 
+.previewAuthButton {
+  min-height: 44px;
+  border-radius: 14px !important;
+  border-color: #c7d2fe !important;
+  color: #3b5bff !important;
+  background: #f8fbff !important;
+}
+
 .authPreview {
   min-height: 430px;
   display: grid;
   align-content: center;
+}
+
+.compactAuthRoot {
+  min-height: auto;
+  display: block;
+  padding: 0;
+  background: transparent;
+}
+
+.compactAuthRoot .authCard {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.authPromptDialog {
+  border-radius: 24px !important;
 }
 
 .sidebar {
@@ -177,6 +203,12 @@
   min-width: 0;
 }
 
+.previewHeaderMeta {
+  margin-top: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .headerTitle .MuiTypography-body1 {
   max-width: 320px;
   line-height: 1.45;
@@ -263,6 +295,16 @@
   border-radius: 14px !important;
   background: linear-gradient(135deg, #3b5bff, #2563eb);
   box-shadow: 0 12px 24px rgba(59, 91, 255, 0.22);
+}
+
+.createAccountButton {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+  border-radius: 14px !important;
+  border-color: #c7d2fe !important;
+  color: #3b5bff !important;
+  background: #fff !important;
 }
 
 .summaryCard {
@@ -1051,6 +1093,11 @@
   .topHeader .headerIcon,
   .topHeader .headerLogoutButton {
     display: none;
+  }
+
+  .topHeader .createAccountButton {
+    display: inline-flex !important;
+    width: 100%;
   }
 
   .addButton {
