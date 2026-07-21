@@ -6,11 +6,13 @@ dist/
 .env
 .env.*
 !.env.production.example
+!.env.local.example
 
 # Local SQLite data
 *.db
 *.db-shm
 *.db-wal
+backups/
 
 # Logs
 *.log

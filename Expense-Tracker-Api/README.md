@@ -12,6 +12,44 @@ npm run dev
 
 Default local URL: `http://localhost:4000`.
 
+## Local testing without Neon/Railway
+
+For day-to-day local testing, use a local PostgreSQL database so production Railway/Neon data is never touched.
+
+Create a local database named:
+
+```text
+expense_tracker_local_dev
+```
+
+Copy the example env file:
+
+```bash
+copy .env.local.example .env.local
+```
+
+Default local API env:
+
+```env
+NODE_ENV=development
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/expense_tracker_local_dev?schema=public"
+JWT_SECRET="local-development-secret-change-before-production"
+JWT_EXPIRES_IN="7d"
+PORT=3108
+CLIENT_ORIGIN="http://localhost:5190,http://127.0.0.1:5190"
+TRUST_PROXY="false"
+```
+
+Then run from the repository root:
+
+```bash
+npm run dev
+```
+
+This applies Prisma migrations to the local PostgreSQL database, starts the API on `http://127.0.0.1:3108`, and starts the Vite app on `http://127.0.0.1:5190`.
+
+If you do not have PostgreSQL installed locally, `npm run dev:sqlite` remains available inside `Expense-Tracker-Api` as a fallback, but the recommended local setup is PostgreSQL.
+
 ## Environment
 
 ```env

@@ -1,0 +1,125 @@
+// Local development schema.
+// This mirrors the production PostgreSQL schema but uses SQLite so the API can
+// run locally without connecting to Neon/Railway.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+model User {
+  id                  String        @id @default(cuid())
+  name                String
+  email               String        @unique
+  passwordHash        String
+  authVersion         Int           @default(0)
+  currency            String        @default("USD")
+  monthlyBudgetCents  Int           @default(500000)
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  categories          Category[]
+  transactions        Transaction[]
+  budgets             Budget[]
+  wallets             Wallet[]
+  goals               Goal[]
+
+  @@index([resetTokenHash])
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String
+  color        String        @default("#607D8B")
+  type         TransactionType?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@unique([userId, name, type])
+  @@index([userId])
+}
+
+model Wallet {
+  id           String        @id @default(cuid())
+  name         String
+  type         String        @default("Card")
+  maskedNumber String?
+  balanceCents Int           @default(0)
+  color        String        @default("#3B5BFF")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Budget {
+  id          String    @id @default(cuid())
+  name        String
+  amountCents Int
+  month       String
+  color       String    @default("#3B5BFF")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  categoryId  String?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, month])
+  @@index([categoryId])
+}
+
+model Goal {
+  id          String    @id @default(cuid())
+  name        String
+  targetCents Int
+  savedCents  Int       @default(0)
+  deadline    DateTime?
+  color       String    @default("#3B5BFF")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  type        TransactionType
+  amountCents Int
+  date        DateTime        @default(now())
+  description String
+  note        String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  userId      String
+  categoryId  String
+  walletId    String?
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  wallet      Wallet?         @relation(fields: [walletId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([categoryId])
+  @@index([walletId])
+}

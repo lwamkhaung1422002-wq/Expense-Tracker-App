@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { DateTime } from "luxon";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { ApiError } from "../utils/apiError.js";
@@ -14,6 +15,10 @@ const budgetSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
   categoryId: z.string().optional().nullable(),
   color: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/).default("#3B5BFF"),
+});
+
+const copyPreviousMonthSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
 });
 
 function serialize(budget) {
@@ -49,6 +54,42 @@ router.post("/", validate(budgetSchema), asyncHandler(async (req, res) => {
     include: { category: true },
   });
   res.status(201).json({ budget: serialize(budget) });
+}));
+
+router.post("/copy-previous", validate(copyPreviousMonthSchema), asyncHandler(async (req, res) => {
+  const targetMonth = req.body.month;
+  const previousMonth = DateTime.fromISO(`${targetMonth}-01`).minus({ months: 1 }).toFormat("yyyy-MM");
+
+  const previousBudgets = await prisma.budget.findMany({
+    where: { userId: req.user.id, month: previousMonth },
+  });
+  if (previousBudgets.length === 0) throw new ApiError(404, "No budgets found for previous month");
+
+  const existingBudgets = await prisma.budget.findMany({
+    where: { userId: req.user.id, month: targetMonth },
+    select: { categoryId: true },
+  });
+  const existingKeys = new Set(existingBudgets.map((budget) => budget.categoryId || "overall"));
+  const budgetsToCreate = previousBudgets.filter((budget) => !existingKeys.has(budget.categoryId || "overall"));
+  if (budgetsToCreate.length === 0) throw new ApiError(409, "This month already has matching budgets");
+
+  await prisma.budget.createMany({
+    data: budgetsToCreate.map((budget) => ({
+      name: budget.name,
+      amountCents: budget.amountCents,
+      month: targetMonth,
+      color: budget.color,
+      categoryId: budget.categoryId,
+      userId: req.user.id,
+    })),
+  });
+
+  const budgets = await prisma.budget.findMany({
+    where: { userId: req.user.id, month: targetMonth },
+    include: { category: true },
+    orderBy: { createdAt: "asc" },
+  });
+  res.status(201).json({ budgets: budgets.map(serialize), copied: budgetsToCreate.length });
 }));
 
 router.put("/:id", validate(budgetSchema), asyncHandler(async (req, res) => {

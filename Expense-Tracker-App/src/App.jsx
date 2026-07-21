@@ -34,6 +34,7 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded'
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import AnalyticsRoundedIcon from '@mui/icons-material/AnalyticsRounded'
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded'
@@ -41,6 +42,7 @@ import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded'
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
@@ -48,11 +50,13 @@ import FlagRoundedIcon from '@mui/icons-material/FlagRounded'
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded'
 import InsertChartRoundedIcon from '@mui/icons-material/InsertChartRounded'
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded'
+import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded'
 import PowerSettingsNewRoundedIcon from '@mui/icons-material/PowerSettingsNewRounded'
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded'
 import SavingsRoundedIcon from '@mui/icons-material/SavingsRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
+import SmartphoneRoundedIcon from '@mui/icons-material/SmartphoneRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import WalletRoundedIcon from '@mui/icons-material/WalletRounded'
@@ -98,6 +102,13 @@ const navItems = [
   { label: 'Wallets', icon: <WalletRoundedIcon />, enabled: true },
   { label: 'Goals', icon: <FlagRoundedIcon />, enabled: true },
   { label: 'Settings', icon: <SettingsRoundedIcon />, enabled: true },
+]
+
+const walletTypeOptions = [
+  { value: 'Cash', label: 'Cash', helper: 'Physical cash balance', color: '#22C55E', icon: <PaymentsRoundedIcon /> },
+  { value: 'Mobile Wallet', label: 'Mobile Wallet', helper: 'KPay, WavePay, AYA Pay, or similar', color: '#2563EB', icon: <SmartphoneRoundedIcon /> },
+  { value: 'Mobile Banking', label: 'Mobile Banking', helper: 'Bank mobile app account', color: '#0F766E', icon: <AccountBalanceRoundedIcon /> },
+  { value: 'Card', label: 'Card', helper: 'Debit or credit card', color: '#3B5BFF', icon: <CreditCardRoundedIcon /> },
 ]
 
 function passwordVisibilitySlotProps(visible, onToggle, label = 'password') {
@@ -255,6 +266,7 @@ function Dashboard({ auth }) {
   const [walletDialog, setWalletDialog] = useState(null)
   const [budgetDialog, setBudgetDialog] = useState(null)
   const [goalDialog, setGoalDialog] = useState(null)
+  const [goalContributionDialog, setGoalContributionDialog] = useState(null)
   const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const timezone = useMemo(() => userTimezone(), [])
 
@@ -363,13 +375,34 @@ function Dashboard({ auth }) {
       requestAccount()
       return
     }
-    await api(`/api/transactions/${id}`, { token: auth.token, method: 'DELETE' })
-    await load()
+    try {
+      setError('')
+      await api(`/api/transactions/${id}`, { token: auth.token, method: 'DELETE' })
+      await reloadTransactions()
+    } catch (err) {
+      setError(err.message)
+      throw err
+    }
   }
 
   async function reloadTransactions() {
     await load()
     await loadExtended()
+  }
+
+  async function copyPreviousBudgets() {
+    if (isPreview) {
+      requestAccount()
+      return
+    }
+    try {
+      setError('')
+      await api('/api/budgets/copy-previous', { token: auth.token, method: 'POST', body: { month } })
+      await loadExtended()
+    } catch (err) {
+      setError(err.message)
+      throw err
+    }
   }
 
   return (
@@ -413,8 +446,8 @@ function Dashboard({ auth }) {
         {activeView === 'Transactions' && <TransactionsView transactions={transactions} loading={loading} money={money} onEdit={isPreview ? requestAccount : setTransactionDialog} onDelete={deleteTransaction} />}
         {activeView === 'Categories' && <CategoriesView categories={categories} onManage={isPreview ? requestAccount : () => setCategoryDialog(true)} />}
         {activeView === 'Wallets' && <WalletsView wallets={wallets} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setWalletDialog({})} onEdit={isPreview ? requestAccount : setWalletDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
-        {activeView === 'Budgets' && <BudgetsView budgets={budgets} month={month} expense={derived.expense} expenseCategories={derived.expenseCategories} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setBudgetDialog({ month })} onEdit={isPreview ? requestAccount : setBudgetDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
-        {activeView === 'Goals' && <GoalsView goals={goals} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setGoalDialog({})} onEdit={isPreview ? requestAccount : setGoalDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
+        {activeView === 'Budgets' && <BudgetsView budgets={budgets} month={month} expense={derived.expense} expenseCategories={derived.expenseCategories} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setBudgetDialog({ month })} onEdit={isPreview ? requestAccount : setBudgetDialog} onDelete={isPreview ? requestAccount : null} onCopyPrevious={copyPreviousBudgets} onReload={loadExtended} />}
+        {activeView === 'Goals' && <GoalsView goals={goals} money={money} token={auth.token} onAdd={isPreview ? requestAccount : () => setGoalDialog({})} onEdit={isPreview ? requestAccount : setGoalDialog} onContribute={isPreview ? requestAccount : setGoalContributionDialog} onDelete={isPreview ? requestAccount : null} onReload={loadExtended} />}
         {activeView === 'Reports' && <ReportsView report={report} period={reportPeriod} onPeriodChange={setReportPeriod} money={money} />}
         {activeView === 'Settings' && <SettingsView profile={profile} token={auth.token} isPreview={isPreview} onProtectedAction={requestAccount} onSaved={(user) => { setProfile(user); auth.updateUser({ id: user.id, name: user.name, email: user.email }) }} onPasswordChanged={auth.logout} />}
       </Box>
@@ -429,6 +462,7 @@ function Dashboard({ auth }) {
         transaction={transactionDialog}
         categories={categories}
         wallets={wallets}
+        money={money}
         token={auth.token}
         onClose={() => setTransactionDialog(null)}
         onSaved={reloadTransactions}
@@ -443,6 +477,7 @@ function Dashboard({ auth }) {
       <WalletDialog open={Boolean(walletDialog)} wallet={walletDialog} token={auth.token} onClose={() => setWalletDialog(null)} onSaved={loadExtended} />
       <BudgetDialog open={Boolean(budgetDialog)} budget={budgetDialog} categories={categories} token={auth.token} onClose={() => setBudgetDialog(null)} onSaved={loadExtended} />
       <GoalDialog open={Boolean(goalDialog)} goal={goalDialog} token={auth.token} onClose={() => setGoalDialog(null)} onSaved={loadExtended} />
+      <GoalContributionDialog open={Boolean(goalContributionDialog)} goal={goalContributionDialog} money={money} token={auth.token} onClose={() => setGoalContributionDialog(null)} onSaved={loadExtended} />
       <AuthPromptDialog open={authPromptOpen} onClose={closeAuthPrompt} onAuth={saveRealAuth} />
     </Box>
   )
@@ -546,7 +581,7 @@ function SummaryGrid({ metrics, loading }) {
     <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
       {metrics.map(({ label, amount, trend, icon, tone, progress }, index) => (
         <Grid size={{ xs: index === 0 ? 12 : 6, sm: 6, xl: 3 }} key={label}>
-          <Card className="summaryCard">
+          <Card className={`summaryCard summaryCard-${tone}`}>
             <CardContent>
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                 <Avatar className={`summaryAvatar ${tone}`}>{icon}</Avatar>
@@ -597,7 +632,13 @@ function CategoryBreakdown({ data, money }) {
           </Box>
           <Chip size="small" label={money.format(total)} className="categoryTotalChip" />
         </Stack>
-        {data.length === 0 ? <EmptyState text="No expense categories yet." /> : (
+        {data.length === 0 ? (
+          <EmptyState
+            icon={<CategoryRoundedIcon />}
+            title="No category spending yet"
+            text="Add expenses with categories to unlock this breakdown."
+          />
+        ) : (
           <Grid container spacing={2.5} sx={{ alignItems: 'center' }}>
             <Grid size={{ xs: 12, sm: 4 }}>
               <Box className="donutBox">
@@ -647,8 +688,18 @@ function RecentTransactions({ transactions, loading, money, onEdit, onDelete, on
   const visibleTransactions = transactions.slice(0, maxItems || fallbackLimit)
 
   async function handleDelete(transaction) {
-    await onDelete(transaction.id)
-    setSelected(null)
+    if (isTransactionLocked(transaction)) {
+      window.alert('Transactions older than one month cannot be edited or deleted.')
+      return
+    }
+    const confirmed = window.confirm(`Delete "${transaction.description}"? This will also update the linked wallet balance.`)
+    if (!confirmed) return
+    try {
+      await onDelete(transaction.id)
+      setSelected(null)
+    } catch (err) {
+      window.alert(err.message)
+    }
   }
 
   return (
@@ -658,7 +709,13 @@ function RecentTransactions({ transactions, loading, money, onEdit, onDelete, on
           <Typography variant="h6">{title}</Typography>
           {onViewAll && <Button size="small" aria-label="View all transactions" onClick={onViewAll}>View All</Button>}
         </Stack>
-        {loading ? <LoadingBlock /> : transactions.length === 0 ? <EmptyState text="No transactions for this month." /> : (
+        {loading ? <LoadingBlock /> : transactions.length === 0 ? (
+          <EmptyState
+            icon={<ReceiptLongRoundedIcon />}
+            title="No transactions yet"
+            text="Transactions will appear here after you record income or expenses."
+          />
+        ) : (
           <Stack className="transactionCards" spacing={1.1}>
             {visibleTransactions.map((transaction) => (
               <TransactionCard key={transaction.id} transaction={transaction} money={money} onClick={() => setSelected(transaction)} />
@@ -714,10 +771,11 @@ function TransactionCard({ transaction, money, onClick }) {
 function TransactionDrawer({ open, transaction, money, anchor, onClose, onEdit, onDelete }) {
   if (!transaction) return null
   const isIncome = transaction.type === 'INCOME'
+  const locked = isTransactionLocked(transaction)
   const walletLabel = transaction.wallet ? `${transaction.wallet.name}${transaction.wallet.maskedNumber ? ` **** ${transaction.wallet.maskedNumber}` : ''}` : 'No wallet'
 
   return (
-    <Drawer anchor={anchor} open={open} onClose={onClose} PaperProps={{ className: anchor === 'bottom' ? 'transactionDrawer bottom' : 'transactionDrawer' }}>
+    <Drawer anchor={anchor} open={open} onClose={onClose} slotProps={{ paper: { className: anchor === 'bottom' ? 'transactionDrawer bottom' : 'transactionDrawer' } }}>
       <Stack spacing={2}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -744,13 +802,26 @@ function TransactionDrawer({ open, transaction, money, anchor, onClose, onEdit, 
           <DetailLine label="Type" value={isIncome ? 'Income' : 'Expense'} />
           {transaction.note && <DetailLine label="Note" value={transaction.note} />}
         </Stack>
+        {locked && (
+          <Alert severity="warning">
+            This transaction is older than one month, so it is locked for editing and deletion.
+          </Alert>
+        )}
         <Stack direction="row" gap={1}>
-          <Button fullWidth variant="contained" startIcon={<EditRoundedIcon />} onClick={() => onEdit(transaction)}>Edit</Button>
-          <Button fullWidth color="error" variant="outlined" startIcon={<DeleteRoundedIcon />} onClick={() => onDelete(transaction)}>Delete</Button>
+          <Button fullWidth variant="contained" startIcon={<EditRoundedIcon />} disabled={locked} onClick={() => onEdit(transaction)}>Edit</Button>
+          <Button fullWidth color="error" variant="outlined" startIcon={<DeleteRoundedIcon />} disabled={locked} onClick={() => onDelete(transaction)}>Delete</Button>
         </Stack>
       </Stack>
     </Drawer>
   )
+}
+
+function isTransactionLocked(transaction) {
+  const occurredAt = new Date(transaction?.occurredAt || transaction?.date)
+  if (Number.isNaN(occurredAt.getTime())) return false
+  const lockedAt = new Date(occurredAt)
+  lockedAt.setMonth(lockedAt.getMonth() + 1)
+  return lockedAt < new Date()
 }
 
 function DetailLine({ label, value }) {
@@ -813,7 +884,7 @@ function CategoriesView({ categories, onManage }) {
       <Grid container spacing={2}>
         {categories.map((category) => (
           <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={category.id}>
-            <Card className="dashboardCard">
+            <Card className="dashboardCard categoryCard">
               <CardContent>
                 <Stack direction="row" gap={1.5} sx={{ alignItems: 'center' }}>
                   <Avatar sx={{ bgcolor: category.color }}>{category.name.slice(0, 1)}</Avatar>
@@ -826,19 +897,48 @@ function CategoriesView({ categories, onManage }) {
             </Card>
           </Grid>
         ))}
+        {categories.length === 0 && (
+          <Grid size={{ xs: 12 }}>
+            <EmptyState
+              icon={<CategoryRoundedIcon />}
+              title="No categories yet"
+              text="Create income and expense categories to organize your transactions."
+              action="Edit Categories"
+              onAction={onManage}
+            />
+          </Grid>
+        )}
       </Grid>
     </Stack>
   )
 }
 
+function walletIcon(type) {
+  return walletTypeOptions.find((option) => option.value === type)?.icon || <WalletRoundedIcon />
+}
+
 function WalletsView({ wallets, money, token, onAdd, onEdit, onDelete, onReload }) {
+  const [removingId, setRemovingId] = useState('')
+
   async function remove(id) {
     if (onDelete) {
       onDelete()
       return
     }
-    await api(`/api/wallets/${id}`, { token, method: 'DELETE' })
-    await onReload()
+    const wallet = wallets.find((item) => item.id === id)
+    const confirmed = window.confirm(
+      `Delete ${wallet?.name || 'this wallet'}? This is only allowed when the wallet has no transaction history.`,
+    )
+    if (!confirmed) return
+    setRemovingId(id)
+    try {
+      await api(`/api/wallets/${id}`, { token, method: 'DELETE' })
+      await onReload()
+    } catch (err) {
+      window.alert(err.message)
+    } finally {
+      setRemovingId('')
+    }
   }
 
   return (
@@ -847,13 +947,38 @@ function WalletsView({ wallets, money, token, onAdd, onEdit, onDelete, onReload 
       <Grid container spacing={2}>
         {wallets.map((wallet) => (
           <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={wallet.id}>
-            <Card className="dashboardCard">
+            <Card className="dashboardCard walletCard">
               <CardContent>
                 <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Avatar sx={{ bgcolor: wallet.color }}><WalletRoundedIcon /></Avatar>
-                  <Stack direction="row">
-                    <IconButton onClick={() => onEdit(wallet)}><EditRoundedIcon /></IconButton>
-                    <IconButton onClick={() => remove(wallet.id)}><DeleteRoundedIcon /></IconButton>
+                  <Avatar sx={{ bgcolor: wallet.color }}>{walletIcon(wallet.type)}</Avatar>
+                  <Stack direction="row" className="cardActions">
+                    <MuiTooltip title="Edit wallet">
+                      <IconButton
+                        aria-label={`Edit ${wallet.name}`}
+                        className="softIconButton"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onEdit(wallet)
+                        }}
+                      >
+                        <EditRoundedIcon />
+                      </IconButton>
+                    </MuiTooltip>
+                    <MuiTooltip title="Delete wallet">
+                      <span>
+                        <IconButton
+                          aria-label={`Delete ${wallet.name}`}
+                          className="softIconButton danger"
+                          disabled={removingId === wallet.id}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            remove(wallet.id)
+                          }}
+                        >
+                          {removingId === wallet.id ? <CircularProgress size={18} /> : <DeleteRoundedIcon />}
+                        </IconButton>
+                      </span>
+                    </MuiTooltip>
                   </Stack>
                 </Stack>
                 <Typography variant="h6" sx={{ mt: 2 }}>{wallet.name}</Typography>
@@ -863,12 +988,23 @@ function WalletsView({ wallets, money, token, onAdd, onEdit, onDelete, onReload 
             </Card>
           </Grid>
         ))}
+        {wallets.length === 0 && (
+          <Grid size={{ xs: 12 }}>
+            <EmptyState
+              icon={<WalletRoundedIcon />}
+              title="No wallets yet"
+              text="Add a wallet or account to track where your money moves."
+              action="Add Wallet"
+              onAction={onAdd}
+            />
+          </Grid>
+        )}
       </Grid>
     </Stack>
   )
 }
 
-function BudgetsView({ budgets, month, expense, expenseCategories, money, token, onAdd, onEdit, onDelete, onReload }) {
+function BudgetsView({ budgets, month, expense, expenseCategories, money, token, onAdd, onEdit, onDelete, onCopyPrevious, onReload }) {
   const isCompact = useMediaQuery('(max-width:760px)')
 
   async function remove(id) {
@@ -876,12 +1012,21 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
       onDelete()
       return
     }
+    const budget = budgets.find((item) => item.id === id)
+    if (!window.confirm(`Delete ${budget?.name || 'this budget'}?`)) return
     await api(`/api/budgets/${id}`, { token, method: 'DELETE' })
     await onReload()
   }
 
   const budgetTotal = budgets.reduce((sum, budget) => sum + Number(budget.amount || 0), 0)
   const progress = budgetTotal > 0 ? Math.min(100, Math.round((expense / budgetTotal) * 100)) : 0
+  async function copyPrevious() {
+    try {
+      await onCopyPrevious()
+    } catch (err) {
+      window.alert(err.message)
+    }
+  }
 
   return (
     <Stack spacing={2.5}>
@@ -890,9 +1035,21 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
           <Box>
             <Typography variant="caption" color="text.secondary">Budget period</Typography>
             <Typography variant="h5">{friendlyMonth(month)}</Typography>
+            <Typography color="text.secondary">Budgets are monthly. Create a new plan each month or copy last month.</Typography>
           </Box>
-          {!isCompact && <Button className="budgetActionButton" variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add Budget</Button>}
+          {!isCompact && (
+            <Stack direction="row" gap={1}>
+              <Button className="budgetSecondaryButton" variant="outlined" onClick={copyPrevious}>Copy Last Month</Button>
+              <Button className="budgetActionButton" variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add Budget</Button>
+            </Stack>
+          )}
         </Stack>
+        {isCompact && (
+          <Stack direction="row" gap={1} sx={{ mt: 2 }}>
+            <Button fullWidth className="budgetSecondaryButton" variant="outlined" onClick={copyPrevious}>Copy Last Month</Button>
+            <Button fullWidth variant="contained" startIcon={<AddRoundedIcon />} onClick={onAdd}>Add</Button>
+          </Stack>
+        )}
         <Stack direction="row" sx={{ mt: 2, justifyContent: 'space-between' }}>
           <Typography color="text.secondary">Spent</Typography>
           <Typography fontWeight={600}>{money.format(expense)}{budgetTotal > 0 ? ` / ${money.format(budgetTotal)}` : ''}</Typography>
@@ -906,16 +1063,16 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
           const progress = budget.amount > 0 ? Math.min(100, Math.round((spent / budget.amount) * 100)) : 0
           return (
             <Grid size={{ xs: 12, md: 6 }} key={budget.id}>
-              <Card className="dashboardCard">
+              <Card className="dashboardCard budgetPlanCard">
                 <CardContent>
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                     <Box>
                       <Typography variant="h6">{budget.name}</Typography>
                       <Typography color="text.secondary">{budget.category?.name || 'Overall budget'} - {budget.month}</Typography>
                     </Box>
-                    <Stack direction="row">
-                      <IconButton onClick={() => onEdit(budget)}><EditRoundedIcon /></IconButton>
-                      <IconButton onClick={() => remove(budget.id)}><DeleteRoundedIcon /></IconButton>
+                    <Stack direction="row" className="cardActions">
+                      <IconButton className="softIconButton" onClick={() => onEdit(budget)}><EditRoundedIcon /></IconButton>
+                      <IconButton className="softIconButton danger" onClick={() => remove(budget.id)}><DeleteRoundedIcon /></IconButton>
                     </Stack>
                   </Stack>
                   <Typography variant="h5" sx={{ mt: 2 }}>{money.format(budget.amount)}</Typography>
@@ -944,12 +1101,14 @@ function BudgetsView({ budgets, month, expense, expenseCategories, money, token,
   )
 }
 
-function GoalsView({ goals, money, token, onAdd, onEdit, onDelete, onReload }) {
+function GoalsView({ goals, money, token, onAdd, onEdit, onContribute, onDelete, onReload }) {
   async function remove(id) {
     if (onDelete) {
       onDelete()
       return
     }
+    const goal = goals.find((item) => item.id === id)
+    if (!window.confirm(`Delete ${goal?.name || 'this goal'}?`)) return
     await api(`/api/goals/${id}`, { token, method: 'DELETE' })
     await onReload()
   }
@@ -962,26 +1121,50 @@ function GoalsView({ goals, money, token, onAdd, onEdit, onDelete, onReload }) {
           const progress = Math.min(100, Math.round((goal.saved / goal.target) * 100))
           return (
             <Grid size={{ xs: 12, md: 6 }} key={goal.id}>
-              <Card className="dashboardCard">
+              <Card className="dashboardCard goalCard">
                 <CardContent>
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                     <Box>
                       <Typography variant="h6">{goal.name}</Typography>
                       <Typography color="text.secondary">{goal.deadline ? `Due ${friendlyDate(goal.deadline)}` : 'No deadline'}</Typography>
                     </Box>
-                    <Stack direction="row">
-                      <IconButton onClick={() => onEdit(goal)}><EditRoundedIcon /></IconButton>
-                      <IconButton onClick={() => remove(goal.id)}><DeleteRoundedIcon /></IconButton>
+                    <Stack direction="row" className="cardActions">
+                      <IconButton className="softIconButton" onClick={() => onEdit(goal)}><EditRoundedIcon /></IconButton>
+                      <IconButton className="softIconButton danger" onClick={() => remove(goal.id)}><DeleteRoundedIcon /></IconButton>
                     </Stack>
                   </Stack>
                   <Typography sx={{ mt: 2 }}><b>{money.format(goal.saved)}</b> of {money.format(goal.target)}</Typography>
+                  <Stack direction="row" sx={{ mt: 0.75, justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Remaining {money.format(Math.max(0, goal.target - goal.saved))}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{progress}%</Typography>
+                  </Stack>
                   <LinearProgress variant="determinate" value={progress} sx={{ mt: 1.5, '& .MuiLinearProgress-bar': { backgroundColor: goal.color } }} />
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<AddRoundedIcon />}
+                    sx={{ mt: 2 }}
+                    disabled={progress >= 100}
+                    onClick={() => onContribute(goal)}
+                  >
+                    Add Saved Money
+                  </Button>
                 </CardContent>
               </Card>
             </Grid>
           )
         })}
-        {goals.length === 0 && <Grid size={{ xs: 12 }}><EmptyState text="No goals yet. Add a savings goal." /></Grid>}
+        {goals.length === 0 && (
+          <Grid size={{ xs: 12 }}>
+            <EmptyState
+              icon={<FlagRoundedIcon />}
+              title="No goals yet"
+              text="Add a savings goal when you are ready to track progress."
+              action="Add Goal"
+              onAction={onAdd}
+            />
+          </Grid>
+        )}
       </Grid>
     </Stack>
   )
@@ -1226,13 +1409,17 @@ function FeatureHeader({ title, subtitle, action, onAction }) {
           <Typography variant="h5">{title}</Typography>
           {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
         </Box>
-        {action && <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={onAction}>{action}</Button>}
+        {action && (
+          <Button className="featureHeaderAction" variant="contained" startIcon={<AddRoundedIcon />} onClick={onAction}>
+            {action}
+          </Button>
+        )}
       </Stack>
     </Paper>
   )
 }
 
-function TransactionDialog({ open, transaction, categories, wallets = [], token, onClose, onSaved }) {
+function TransactionDialog({ open, transaction, categories, wallets = [], money, token, onClose, onSaved }) {
   const [form, setForm] = useState(blankTransaction())
   const [adjustTime, setAdjustTime] = useState(false)
   const [error, setError] = useState('')
@@ -1254,9 +1441,24 @@ function TransactionDialog({ open, transaction, categories, wallets = [], token,
   }, [transaction, wallets])
 
   const filteredCategories = categories.filter((category) => !category.type || category.type === form.type)
+  const selectedWallet = wallets.find((wallet) => wallet.id === form.walletId)
+  const availableForExpense = useMemo(() => {
+    if (!selectedWallet) return null
+    let balance = Number(selectedWallet.balance || 0)
+    if (transaction?.id && transaction.walletId === selectedWallet.id) {
+      const previousAmount = Number(transaction.amount || 0)
+      balance += transaction.type === 'EXPENSE' ? previousAmount : -previousAmount
+    }
+    return balance
+  }, [selectedWallet, transaction])
 
   async function submit(event) {
     event.preventDefault()
+    const amount = Number(form.amount || 0)
+    if (form.type === 'EXPENSE' && selectedWallet && availableForExpense != null && amount > availableForExpense) {
+      setError(`Insufficient balance in ${selectedWallet.name}. Increase the wallet balance before recording this expense.`)
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -1282,7 +1484,14 @@ function TransactionDialog({ open, transaction, categories, wallets = [], token,
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      fullScreen={fullScreen}
+      slotProps={{ paper: { className: 'appDialogPaper transactionDialogPaper' } }}
+    >
       <Box component="form" onSubmit={submit}>
         <DialogTitle>{transaction?.id ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
         <DialogContent>
@@ -1337,6 +1546,11 @@ function TransactionDialog({ open, transaction, categories, wallets = [], token,
                   </MenuItem>
                 ))}
               </Select>
+              {form.type === 'EXPENSE' && selectedWallet && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75 }}>
+                  Available: {money.format(availableForExpense || 0)} in {selectedWallet.name}
+                </Typography>
+              )}
             </FormControl>
             <TextField label="Notes" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} multiline minRows={2} />
           </Stack>
@@ -1354,21 +1568,43 @@ function WalletDialog({ open, wallet, token, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', type: 'Card', maskedNumber: '', balance: 0, color: '#3B5BFF' })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const fullScreen = useMediaQuery('(max-width:760px)')
+  const selectedType = walletTypeOptions.find((option) => option.value === form.type) || walletTypeOptions.at(-1)
+  const needsIdentifier = form.type !== 'Cash'
+  const identifierLabel = form.type === 'Mobile Wallet' ? 'Phone number' : 'Last digits'
+  const identifierHelper = form.type === 'Mobile Wallet'
+    ? 'Use the phone number linked to this wallet.'
+    : 'Optional, for example 2841 or 9988.'
 
   useEffect(() => {
     if (!open) return
+    const matchingType = walletTypeOptions.find((option) => option.value === wallet?.type)
     setForm(wallet?.id ? {
       name: wallet.name,
-      type: wallet.type,
+      type: matchingType?.value || 'Card',
       maskedNumber: wallet.maskedNumber || '',
       balance: wallet.balance,
-      color: wallet.color || '#3B5BFF',
-    } : { name: '', type: 'Card', maskedNumber: '', balance: 0, color: '#3B5BFF' })
+      color: wallet.color || matchingType?.color || '#3B5BFF',
+    } : { name: '', type: 'Cash', maskedNumber: '', balance: 0, color: '#22C55E' })
     setError('')
   }, [open, wallet])
 
+  function chooseWalletType(option) {
+    setForm((current) => ({
+      ...current,
+      type: option.value,
+      color: option.color,
+      name: current.name || (option.value === 'Mobile Wallet' ? '' : option.label),
+      maskedNumber: option.value === 'Cash' ? '' : current.maskedNumber,
+    }))
+  }
+
   async function submit(event) {
     event.preventDefault()
+    if (form.type === 'Mobile Wallet' && !form.maskedNumber.trim()) {
+      setError('Phone number is required for a mobile wallet.')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -1385,15 +1621,65 @@ function WalletDialog({ open, wallet, token, onClose, onSaved }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen} slotProps={{ paper: { className: 'appDialogPaper' } }}>
       <Box component="form" onSubmit={submit}>
         <DialogTitle>{wallet?.id ? 'Edit Wallet' : 'Add Wallet'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
-            <TextField label="Wallet name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-            <TextField label="Type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} required />
-            <TextField label="Last digits or label" value={form.maskedNumber} onChange={(event) => setForm({ ...form, maskedNumber: event.target.value })} />
+            <FormControl fullWidth>
+              <InputLabel>Wallet type</InputLabel>
+              <Select
+                label="Wallet type"
+                value={form.type}
+                onChange={(event) => {
+                  const option = walletTypeOptions.find((item) => item.value === event.target.value)
+                  if (option) chooseWalletType(option)
+                }}
+                renderValue={() => selectedType?.label || form.type}
+              >
+                {walletTypeOptions.map((option) => (
+                  <MenuItem value={option.value} key={option.value}>
+                    <Stack direction="row" gap={1.4} sx={{ alignItems: 'center' }}>
+                      <Avatar className="walletTypeMenuIcon" sx={{ bgcolor: option.color }}>{option.icon}</Avatar>
+                      <Box>
+                        <Typography fontWeight={700}>{option.label}</Typography>
+                        <Typography variant="body2" color="text.secondary">{option.helper}</Typography>
+                      </Box>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Stack direction="row" className="walletTypeChips">
+              {walletTypeOptions.map((option) => (
+                <Chip
+                  key={option.value}
+                  icon={option.icon}
+                  label={option.label}
+                  color={form.type === option.value ? 'primary' : 'default'}
+                  variant={form.type === option.value ? 'filled' : 'outlined'}
+                  onClick={() => chooseWalletType(option)}
+                />
+              ))}
+            </Stack>
+            <TextField
+              label={form.type === 'Mobile Wallet' ? 'Wallet name' : 'Name'}
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              helperText={form.type === 'Mobile Wallet' ? 'For example KPay, WavePay, AYA Pay, or your custom wallet name.' : form.type === 'Cash' ? 'For example Cash, Personal cash, or Office cash.' : ''}
+              required
+            />
+            {needsIdentifier && (
+              <TextField
+                label={identifierLabel}
+                value={form.maskedNumber}
+                onChange={(event) => setForm({ ...form, maskedNumber: event.target.value })}
+                helperText={identifierHelper}
+                required={form.type === 'Mobile Wallet'}
+                inputProps={form.type === 'Mobile Wallet' ? { inputMode: 'tel', maxLength: 20 } : { inputMode: 'numeric', maxLength: 8 }}
+              />
+            )}
             <TextField label="Starting balance" type="number" inputProps={{ step: '0.01' }} value={form.balance} onChange={(event) => setForm({ ...form, balance: event.target.value })} />
             <TextField label="Color" type="color" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} />
           </Stack>
@@ -1411,6 +1697,7 @@ function BudgetDialog({ open, budget, categories, token, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', amount: '', month: monthNow(), categoryId: '', color: '#3B5BFF' })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const fullScreen = useMediaQuery('(max-width:760px)')
   const expenseCategories = categories.filter((category) => !category.type || category.type === 'EXPENSE')
 
   useEffect(() => {
@@ -1443,7 +1730,7 @@ function BudgetDialog({ open, budget, categories, token, onClose, onSaved }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen} slotProps={{ paper: { className: 'appDialogPaper' } }}>
       <Box component="form" onSubmit={submit}>
         <DialogTitle>{budget?.id ? 'Edit Budget' : 'Add Budget'}</DialogTitle>
         <DialogContent>
@@ -1451,7 +1738,7 @@ function BudgetDialog({ open, budget, categories, token, onClose, onSaved }) {
             {error && <Alert severity="error">{error}</Alert>}
             <TextField label="Budget name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
             <TextField label="Amount" type="number" inputProps={{ min: '0.01', step: '0.01' }} value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} required />
-            <TextField label="Month" type="month" value={form.month} onChange={(event) => setForm({ ...form, month: event.target.value })} required />
+            <TextField label="Budget month" type="month" value={form.month} onChange={(event) => setForm({ ...form, month: event.target.value })} helperText="Budgets apply to one selected month." required />
             <FormControl fullWidth>
               <InputLabel>Category</InputLabel>
               <Select label="Category" value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}>
@@ -1475,6 +1762,7 @@ function GoalDialog({ open, goal, token, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', target: '', saved: 0, deadline: '', color: '#3B5BFF' })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const fullScreen = useMediaQuery('(max-width:760px)')
 
   useEffect(() => {
     if (!open) return
@@ -1506,7 +1794,7 @@ function GoalDialog({ open, goal, token, onClose, onSaved }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen} slotProps={{ paper: { className: 'appDialogPaper' } }}>
       <Box component="form" onSubmit={submit}>
         <DialogTitle>{goal?.id ? 'Edit Goal' : 'Add Goal'}</DialogTitle>
         <DialogContent>
@@ -1514,7 +1802,7 @@ function GoalDialog({ open, goal, token, onClose, onSaved }) {
             {error && <Alert severity="error">{error}</Alert>}
             <TextField label="Goal name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
             <TextField label="Target amount" type="number" inputProps={{ min: '0.01', step: '0.01' }} value={form.target} onChange={(event) => setForm({ ...form, target: event.target.value })} required />
-            <TextField label="Saved so far" type="number" inputProps={{ min: '0', step: '0.01' }} value={form.saved} onChange={(event) => setForm({ ...form, saved: event.target.value })} />
+            <TextField label="Saved so far" type="number" inputProps={{ min: '0', step: '0.01' }} value={form.saved} onChange={(event) => setForm({ ...form, saved: event.target.value })} helperText="After creating a goal, use Add Saved Money to record monthly savings." />
             <TextField label="Deadline" type="date" value={form.deadline} onChange={(event) => setForm({ ...form, deadline: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label="Color" type="color" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} />
           </Stack>
@@ -1522,6 +1810,75 @@ function GoalDialog({ open, goal, token, onClose, onSaved }) {
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={saving}>{saving ? 'Saving...' : 'Save Goal'}</Button>
+        </DialogActions>
+      </Box>
+    </Dialog>
+  )
+}
+
+function GoalContributionDialog({ open, goal, money, token, onClose, onSaved }) {
+  const [amount, setAmount] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const fullScreen = useMediaQuery('(max-width:760px)')
+  const remaining = Math.max(0, Number(goal?.target || 0) - Number(goal?.saved || 0))
+
+  useEffect(() => {
+    if (!open) return
+    setAmount('')
+    setError('')
+  }, [open])
+
+  async function submit(event) {
+    event.preventDefault()
+    const contribution = Number(amount || 0)
+    if (contribution <= 0) {
+      setError('Enter a saved amount greater than zero.')
+      return
+    }
+    if (contribution > remaining) {
+      setError(`This is more than the remaining amount of ${money.format(remaining)}.`)
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await api(`/api/goals/${goal.id}/contributions`, { token, method: 'POST', body: { amount: contribution } })
+      onClose()
+      await onSaved()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreen} slotProps={{ paper: { className: 'appDialogPaper' } }}>
+      <Box component="form" onSubmit={submit}>
+        <DialogTitle>Add Saved Money</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <Box>
+              <Typography variant="h6">{goal?.name}</Typography>
+              <Typography color="text.secondary">Remaining {money.format(remaining)}</Typography>
+            </Box>
+            <TextField
+              label="Saved amount"
+              type="number"
+              inputProps={{ min: '0.01', max: remaining, step: '0.01' }}
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              required
+              autoFocus
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="contained" disabled={saving || remaining <= 0}>{saving ? 'Saving...' : 'Add to Goal'}</Button>
         </DialogActions>
       </Box>
     </Dialog>
@@ -1561,6 +1918,8 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
   }
 
   async function deleteCategory(id) {
+    const category = categories.find((item) => item.id === id)
+    if (!window.confirm(`Delete ${category?.name || 'this category'}? Transactions using it may prevent deletion.`)) return
     try {
       await api(`/api/categories/${id}`, { token, method: 'DELETE' })
       await onSaved()
@@ -1570,7 +1929,7 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ className: 'categoryDialogPaper' }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" slotProps={{ paper: { className: 'appDialogPaper categoryDialogPaper' } }}>
       <DialogTitle>Categories</DialogTitle>
       <DialogContent>
         <Stack component="form" spacing={1.5} className="categoryForm" onSubmit={saveCategory}>
@@ -1601,9 +1960,13 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
                 <Typography>{category.name}</Typography>
                 <Chip size="small" label={category.type || 'Any'} variant="outlined" />
               </Stack>
-              <Stack direction="row">
-                <IconButton onClick={() => editCategory(category)}><EditRoundedIcon /></IconButton>
-                <IconButton onClick={() => deleteCategory(category.id)}><DeleteRoundedIcon /></IconButton>
+              <Stack direction="row" className="cardActions">
+                <MuiTooltip title="Edit category">
+                  <IconButton aria-label={`Edit ${category.name}`} className="softIconButton" onClick={() => editCategory(category)}><EditRoundedIcon /></IconButton>
+                </MuiTooltip>
+                <MuiTooltip title="Delete category">
+                  <IconButton aria-label={`Delete ${category.name}`} className="softIconButton danger" onClick={() => deleteCategory(category.id)}><DeleteRoundedIcon /></IconButton>
+                </MuiTooltip>
               </Stack>
             </Stack>
           ))}
@@ -1616,7 +1979,7 @@ function CategoryDialog({ open, categories, token, onClose, onSaved }) {
 
 function AuthPromptDialog({ open, onClose, onAuth }) {
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{ className: 'authPromptDialog' }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" slotProps={{ paper: { className: 'appDialogPaper authPromptDialog' } }}>
       <DialogTitle>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -1659,7 +2022,7 @@ function MobileBottomNav({ activeView, onNavigate, onLogout }) {
         <BottomNavigationAction label="Reports" icon={<InsertChartRoundedIcon />} />
         <BottomNavigationAction label="More" icon={<MoreHorizRoundedIcon />} />
       </BottomNavigation>
-      <Drawer anchor="bottom" open={moreOpen} onClose={() => setMoreOpen(false)} PaperProps={{ className: 'mobileMoreDrawer' }}>
+      <Drawer anchor="bottom" open={moreOpen} onClose={() => setMoreOpen(false)} slotProps={{ paper: { className: 'mobileMoreDrawer' } }}>
         <Stack spacing={1.2}>
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', px: 0.5 }}>
             <Box>
@@ -1843,8 +2206,21 @@ function LoadingBlock() {
   return <Box className="loadingBlock"><CircularProgress size={28} /></Box>
 }
 
-function EmptyState({ text }) {
-  return <Box className="emptyState"><Typography color="text.secondary">{text}</Typography></Box>
+function EmptyState({ icon, title = 'Nothing here yet', text, action, onAction }) {
+  return (
+    <Box className="emptyState">
+      {icon && <Avatar className="emptyStateIcon">{icon}</Avatar>}
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography variant="h6">{title}</Typography>
+        {text && <Typography color="text.secondary">{text}</Typography>}
+      </Box>
+      {action && (
+        <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={onAction}>
+          {action}
+        </Button>
+      )}
+    </Box>
+  )
 }
 
 export default App

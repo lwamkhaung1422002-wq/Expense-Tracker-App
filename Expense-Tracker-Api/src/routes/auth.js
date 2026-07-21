@@ -24,9 +24,10 @@ const defaultCategories = [
 ];
 
 const defaultWallets = [
-  { name: "Visa", type: "Card", maskedNumber: "2841", balanceCents: 0, color: "#3B5BFF" },
   { name: "Cash", type: "Cash", maskedNumber: null, balanceCents: 0, color: "#22C55E" },
-  { name: "Bank Transfer", type: "Bank", maskedNumber: null, balanceCents: 0, color: "#2563EB" },
+  { name: "Mobile Wallet", type: "Mobile Wallet", maskedNumber: null, balanceCents: 0, color: "#2563EB" },
+  { name: "Mobile Banking", type: "Mobile Banking", maskedNumber: null, balanceCents: 0, color: "#0F766E" },
+  { name: "Card", type: "Card", maskedNumber: null, balanceCents: 0, color: "#3B5BFF" },
 ];
 
 const registerSchema = z.object({

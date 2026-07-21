@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { DateTime } from "luxon";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { ApiError } from "../utils/apiError.js";
@@ -33,6 +34,47 @@ function serialize(transaction) {
     amountCents: undefined,
     occurredAt: transaction.date,
   };
+}
+
+function walletDeltaCents(transaction) {
+  if (!transaction?.walletId) return 0;
+  return transaction.type === "INCOME" ? transaction.amountCents : -transaction.amountCents;
+}
+
+function reverseWalletDeltaCents(transaction) {
+  return -walletDeltaCents(transaction);
+}
+
+function assertTransactionEditable(transaction) {
+  const lockedAt = DateTime.fromJSDate(transaction.date, { zone: "utc" }).plus({ months: 1 });
+  if (lockedAt < DateTime.utc()) {
+    throw new ApiError(409, "Transactions older than one month cannot be edited or deleted");
+  }
+}
+
+function assertDateInEditableWindow(date) {
+  const lockedAt = DateTime.fromJSDate(date, { zone: "utc" }).plus({ months: 1 });
+  if (lockedAt < DateTime.utc()) {
+    throw new ApiError(400, "Transaction date cannot be older than one month");
+  }
+}
+
+async function assertWalletCanApply(tx, userId, ...transactions) {
+  const balanceChanges = new Map();
+  for (const transaction of transactions) {
+    const delta = walletDeltaCents(transaction);
+    if (!transaction?.walletId || delta === 0) continue;
+    balanceChanges.set(transaction.walletId, (balanceChanges.get(transaction.walletId) || 0) + delta);
+  }
+
+  for (const [walletId, delta] of balanceChanges.entries()) {
+    if (delta >= 0) continue;
+    const wallet = await tx.wallet.findFirst({ where: { id: walletId, userId } });
+    if (!wallet) throw new ApiError(400, "Wallet is invalid");
+    if (wallet.balanceCents + delta < 0) {
+      throw new ApiError(400, `Insufficient balance in ${wallet.name}. Increase the wallet balance before recording this expense.`);
+    }
+  }
 }
 
 async function assertCategory(userId, categoryId, type) {
@@ -83,18 +125,33 @@ router.post(
     await assertWallet(req.user.id, req.body.walletId);
     const occurredAt = parseOptionalTimestamp(req.body.date) || new Date();
 
-    const transaction = await prisma.transaction.create({
-      data: {
+    const amountCents = toCents(req.body.amount);
+    const transaction = await prisma.$transaction(async (tx) => {
+      await assertWalletCanApply(tx, req.user.id, {
         type: req.body.type,
-        amountCents: toCents(req.body.amount),
-        date: occurredAt,
-        description: req.body.description,
-        note: req.body.note || null,
-        categoryId: req.body.categoryId,
+        amountCents,
         walletId: req.body.walletId || null,
-        userId: req.user.id,
-      },
-      include: { category: true, wallet: true },
+      });
+      const created = await tx.transaction.create({
+        data: {
+          type: req.body.type,
+          amountCents,
+          date: occurredAt,
+          description: req.body.description,
+          note: req.body.note || null,
+          categoryId: req.body.categoryId,
+          walletId: req.body.walletId || null,
+          userId: req.user.id,
+        },
+        include: { category: true, wallet: true },
+      });
+      if (created.walletId) {
+        await tx.wallet.update({
+          where: { id: created.walletId },
+          data: { balanceCents: { increment: walletDeltaCents(created) } },
+        });
+      }
+      return created;
     });
     res.status(201).json({ transaction: serialize(transaction) });
   }),
@@ -108,22 +165,54 @@ router.put(
       where: { id: req.params.id, userId: req.user.id },
     });
     if (!existing) throw new ApiError(404, "Transaction not found");
+    assertTransactionEditable(existing);
     await assertCategory(req.user.id, req.body.categoryId, req.body.type);
     await assertWallet(req.user.id, req.body.walletId);
     const occurredAt = parseOptionalTimestamp(req.body.date);
+    if (occurredAt) assertDateInEditableWindow(occurredAt);
 
-    const transaction = await prisma.transaction.update({
-      where: { id: req.params.id },
-      data: {
+    const amountCents = toCents(req.body.amount);
+    const transaction = await prisma.$transaction(async (tx) => {
+      const rollbackExisting = {
+        type: existing.type === "INCOME" ? "EXPENSE" : "INCOME",
+        amountCents: existing.amountCents,
+        walletId: existing.walletId,
+      };
+      const proposed = {
         type: req.body.type,
-        amountCents: toCents(req.body.amount),
-        ...(occurredAt ? { date: occurredAt } : {}),
-        description: req.body.description,
-        note: req.body.note || null,
-        categoryId: req.body.categoryId,
+        amountCents,
         walletId: req.body.walletId || null,
-      },
-      include: { category: true, wallet: true },
+      };
+      await assertWalletCanApply(tx, req.user.id, rollbackExisting, proposed);
+
+      if (existing.walletId) {
+        await tx.wallet.update({
+          where: { id: existing.walletId },
+          data: { balanceCents: { increment: reverseWalletDeltaCents(existing) } },
+        });
+      }
+
+      const updated = await tx.transaction.update({
+        where: { id: req.params.id },
+        data: {
+          type: req.body.type,
+          amountCents,
+          ...(occurredAt ? { date: occurredAt } : {}),
+          description: req.body.description,
+          note: req.body.note || null,
+          categoryId: req.body.categoryId,
+          walletId: req.body.walletId || null,
+        },
+        include: { category: true, wallet: true },
+      });
+
+      if (updated.walletId) {
+        await tx.wallet.update({
+          where: { id: updated.walletId },
+          data: { balanceCents: { increment: walletDeltaCents(updated) } },
+        });
+      }
+      return updated;
     });
     res.json({ transaction: serialize(transaction) });
   }),
@@ -136,8 +225,17 @@ router.delete(
       where: { id: req.params.id, userId: req.user.id },
     });
     if (!existing) throw new ApiError(404, "Transaction not found");
+    assertTransactionEditable(existing);
 
-    await prisma.transaction.delete({ where: { id: req.params.id } });
+    await prisma.$transaction(async (tx) => {
+      if (existing.walletId) {
+        await tx.wallet.update({
+          where: { id: existing.walletId },
+          data: { balanceCents: { increment: reverseWalletDeltaCents(existing) } },
+        });
+      }
+      await tx.transaction.delete({ where: { id: req.params.id } });
+    });
     res.status(204).send();
   }),
 );

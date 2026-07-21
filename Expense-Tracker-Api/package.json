@@ -8,11 +8,17 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "npm run dev:local",
+    "dev:local": "npm run prisma:local:migrate && node --watch src/server.js",
+    "dev:postgres": "npm run prisma:generate && node --watch src/server.js",
+    "dev:sqlite": "npm run prisma:sqlite:generate && npm run prisma:sqlite:push && node --watch src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:local:migrate": "prisma migrate dev",
+    "prisma:sqlite:generate": "prisma generate --schema prisma/schema.local.prisma",
+    "prisma:sqlite:push": "prisma db push --schema prisma/schema.local.prisma",
     "render:build": "npm ci --include=dev && npm run prisma:generate",
     "render:predeploy": "npm run prisma:deploy",
     "lint": "node --check src/server.js && node --check src/app.js"

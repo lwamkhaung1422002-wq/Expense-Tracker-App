@@ -8,16 +8,30 @@ import { validate } from "../utils/validators.js";
 
 const router = Router();
 
+const walletTypes = ["Cash", "Mobile Wallet", "Mobile Banking", "Card"];
+
 const walletSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  type: z.string().trim().min(1).max(40).default("Card"),
+  type: z.enum(walletTypes).default("Card"),
   maskedNumber: z.string().trim().max(20).optional().nullable(),
   balance: z.coerce.number().default(0),
   color: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/).default("#3B5BFF"),
+}).superRefine((value, ctx) => {
+  if (value.type === "Mobile Wallet" && !value.maskedNumber?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["maskedNumber"],
+      message: "Phone number is required for a mobile wallet",
+    });
+  }
 });
 
 function serialize(wallet) {
   return { ...wallet, balance: fromCents(wallet.balanceCents), balanceCents: undefined };
+}
+
+function walletIdentifier(body) {
+  return body.type === "Cash" ? null : body.maskedNumber || null;
 }
 
 router.get("/", asyncHandler(async (req, res) => {
@@ -30,7 +44,7 @@ router.post("/", validate(walletSchema), asyncHandler(async (req, res) => {
     data: {
       name: req.body.name,
       type: req.body.type,
-      maskedNumber: req.body.maskedNumber || null,
+      maskedNumber: walletIdentifier(req.body),
       balanceCents: toCents(req.body.balance),
       color: req.body.color,
       userId: req.user.id,
@@ -47,7 +61,7 @@ router.put("/:id", validate(walletSchema), asyncHandler(async (req, res) => {
     data: {
       name: req.body.name,
       type: req.body.type,
-      maskedNumber: req.body.maskedNumber || null,
+      maskedNumber: walletIdentifier(req.body),
       balanceCents: toCents(req.body.balance),
       color: req.body.color,
     },
@@ -58,13 +72,11 @@ router.put("/:id", validate(walletSchema), asyncHandler(async (req, res) => {
 router.delete("/:id", asyncHandler(async (req, res) => {
   const existing = await prisma.wallet.findFirst({ where: { id: req.params.id, userId: req.user.id } });
   if (!existing) throw new ApiError(404, "Wallet not found");
-  await prisma.$transaction([
-    prisma.transaction.updateMany({
-      where: { walletId: req.params.id, userId: req.user.id },
-      data: { walletId: null },
-    }),
-    prisma.wallet.delete({ where: { id: req.params.id } }),
-  ]);
+  const transactionCount = await prisma.transaction.count({ where: { walletId: req.params.id, userId: req.user.id } });
+  if (transactionCount > 0) {
+    throw new ApiError(409, "Delete this wallet's transactions before deleting the wallet");
+  }
+  await prisma.wallet.delete({ where: { id: req.params.id } });
   res.status(204).send();
 }));
 

@@ -13,9 +13,9 @@ export const theme = createTheme({
   shape: { borderRadius: 18 },
   typography: {
     fontFamily: '"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-    h4: { fontSize: '2.25rem', lineHeight: 1.08, fontWeight: 750, letterSpacing: '-0.02em' },
-    h5: { fontSize: '1.35rem', lineHeight: 1.18, fontWeight: 750, letterSpacing: '-0.012em' },
-    h6: { fontSize: '1.02rem', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.006em' },
+    h4: { fontSize: '2.25rem', lineHeight: 1.08, fontWeight: 750, letterSpacing: 0 },
+    h5: { fontSize: '1.35rem', lineHeight: 1.18, fontWeight: 750, letterSpacing: 0 },
+    h6: { fontSize: '1.02rem', lineHeight: 1.25, fontWeight: 700, letterSpacing: 0 },
     subtitle1: { fontSize: '0.98rem', lineHeight: 1.45 },
     body1: { fontSize: '0.95rem', lineHeight: 1.5, letterSpacing: 0 },
     body2: { fontSize: '0.86rem', lineHeight: 1.45, letterSpacing: 0 },
@@ -32,7 +32,21 @@ export const theme = createTheme({
         },
       },
     },
-    MuiButton: { styleOverrides: { root: { borderRadius: 12, boxShadow: 'none' } } },
+    MuiButton: { styleOverrides: { root: { minHeight: 40, borderRadius: 12, boxShadow: 'none' } } },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 24,
+        },
+      },
+    },
     MuiTextField: {
       styleOverrides: {
         root: {
